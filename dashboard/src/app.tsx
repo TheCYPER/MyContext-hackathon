@@ -5,6 +5,7 @@ import { entityMatches } from "./components/layout/global-search";
 import { AppShell } from "./components/layout/app-shell";
 import { Brand } from "./components/layout/sidebar";
 import { LoadingState } from "./components/loading-state";
+import { EntityInspector } from "./components/entity-inspector";
 import { Button } from "./components/ui/button";
 import { useDashboardData } from "./hooks/use-dashboard-data";
 import { useHashView, VIEW_META, type ViewName } from "./hooks/use-hash-view";
@@ -76,7 +77,13 @@ export function App() {
           {renderView()}
         </main>
       </AppShell>
-      <span className="sr-only">{selectedEntityId ? `Selected ${selectedEntityId}` : "No selected record"}{graphFocusId ? ` · graph focus ${graphFocusId}` : ""}</span>
+      <EntityInspector
+        entityId={selectedEntityId}
+        summary={data.snapshot.entities.find((entity) => entity.id === selectedEntityId)}
+        revision={data.snapshot.revision}
+        onOpenChange={(open) => { if (!open) setSelectedEntityId(null); }}
+      />
+      <span className="sr-only">{graphFocusId ? `Graph focus ${graphFocusId}` : "No graph focus"}</span>
     </>
   );
 }
