@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="790" viewBox="0 0 1200 790" role="img" aria-labelledby="title description">
+  <title id="title">How MyContext carries useful context between working sessions</title>
+  <desc id="description">Four steps form a loop: work with an AI assistant, capture selected facts with sources, save them to a private context library, and retrieve relevant context in the next session. Capture queues for review by default. A library can explicitly enable automatic append-only journal entries and local commits. The skill works from selected information in the active task, not a background transcript watcher.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto"><path d="M2 2 7 6 2 10" fill="none" stroke="#315EDB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="1200" height="790" rx="20" fill="#F6F8FD"/>
+  <g font-family="Avenir Next, Avenir, Segoe UI, Arial, sans-serif" fill="#142445">
+    <text x="58" y="72" font-size="40" font-weight="600" letter-spacing="-1">Useful context returns to the work.</text>
+    <text x="60" y="112" font-size="21" fill="#566781">A small loop between your current task and your private library.</text>
+
+    <g>
+      <circle cx="83" cy="196" r="23" fill="#315EDB"/>
+      <text x="83" y="203" text-anchor="middle" font-size="21" font-weight="600" fill="#FFFFFF">1</text>
+      <text x="121" y="204" font-size="29" font-weight="600">Work with your AI</text>
+      <text x="60" y="249" font-size="20" fill="#566781">Build a project. Study a topic.</text>
+      <text x="60" y="279" font-size="20" fill="#566781">Test an idea. Review an internship.</text>
+      <path d="M60 309H464" fill="none" stroke="#C7D4F0" stroke-width="1.5"/>
+      <text x="60" y="339" font-size="17" fill="#315EDB">The session where the work happens</text>
+    </g>
+
+    <g>
+      <circle cx="759" cy="196" r="23" fill="#315EDB"/>
+      <text x="759" y="203" text-anchor="middle" font-size="21" font-weight="600" fill="#FFFFFF">2</text>
+      <text x="797" y="204" font-size="29" font-weight="600">Capture what matters</text>
+      <text x="736" y="249" font-size="20" fill="#566781">Selected facts from the active task,</text>
+      <text x="736" y="279" font-size="20" fill="#566781">with evidence and source references.</text>
+      <path d="M736 309H1140" fill="none" stroke="#C7D4F0" stroke-width="1.5"/>
+      <text x="736" y="339" font-size="17" fill="#315EDB">Decision · verified result · next step</text>
+    </g>
+
+    <g>
+      <circle cx="83" cy="511" r="23" fill="#315EDB"/>
+      <text x="83" y="518" text-anchor="middle" font-size="21" font-weight="600" fill="#FFFFFF">4</text>
+      <text x="121" y="519" font-size="29" font-weight="600">Return with context</text>
+      <text x="60" y="564" font-size="20" fill="#566781">Retrieve the relevant records and</text>
+      <text x="60" y="594" font-size="20" fill="#566781">sources when the next task needs them.</text>
+      <path d="M60 624H464" fill="none" stroke="#C7D4F0" stroke-width="1.5"/>
+      <text x="60" y="654" font-size="17" fill="#315EDB">Continue from what you already know</text>
+    </g>
+
+    <g>
+      <rect x="714" y="473" width="448" height="226" rx="12" fill="#FFFFFF" stroke="#B5C8F5" stroke-width="1.5"/>
+      <circle cx="759" cy="511" r="23" fill="#315EDB"/>
+      <text x="759" y="518" text-anchor="middle" font-size="21" font-weight="600" fill="#FFFFFF">3</text>
+      <text x="797" y="519" font-size="29" font-weight="600">Save to your library</text>
+      <path d="M736 544H1140" fill="none" stroke="#DFE6F4"/>
+      <path d="M744 565V654M744 579H759M744 642H759" fill="none" stroke="#A6B8D9" stroke-width="1.5"/>
+      <text x="774" y="582" font-size="19" font-weight="600" fill="#315EDB">Default: review before saving</text>
+      <text x="774" y="609" font-size="17" fill="#566781">Queue selected facts for approval.</text>
+      <text x="774" y="645" font-size="19" font-weight="600" fill="#147D78">Opt in: append automatically</text>
+      <text x="774" y="672" font-size="17" fill="#566781">New journal entry and a local commit.</text>
+    </g>
+
+    <text x="600" y="414" text-anchor="middle" font-size="18" fill="#566781">Your context stays in</text>
+    <text x="600" y="441" text-anchor="middle" font-size="20" font-weight="600">your local Markdown library</text>
+    <text x="600" y="755" text-anchor="middle" font-size="17" fill="#566781">Existing-record edits stay reviewed. No background transcript collection.</text>
+  </g>
+
+  <g fill="none" stroke="#315EDB" stroke-width="2.2" marker-end="url(#arrow)">
+    <path d="M497 259H699"/>
+    <path d="M940 365V448"/>
+    <path d="M691 583H500"/>
+    <path d="M262 459V372"/>
+  </g>
+</svg>
