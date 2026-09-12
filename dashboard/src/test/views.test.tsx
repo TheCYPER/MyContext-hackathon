@@ -16,7 +16,7 @@ describe("dashboard views", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(await screen.findByText("2 Projects")).toBeInTheDocument();
+    expect(await screen.findByText("3 Projects")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Current focus" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Needs your review/i }));
     expect(screen.getByRole("dialog", { name: "Needs your review" })).toBeInTheDocument();

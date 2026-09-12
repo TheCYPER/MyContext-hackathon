@@ -24,10 +24,25 @@ export function EntityIdeaCard({
     idea.ideaKind === "research"
       ? idea.submission?.projectTitle || idea.title
       : idea.title;
+  const stateSurface =
+    idea.status === "active" ||
+    idea.status === "draft" ||
+    idea.status === "archived"
+      ? idea.status
+      : "other";
+  const stateShadow = {
+    active: "shadow-[var(--shadow-active-card)]",
+    draft: "shadow-[var(--shadow-draft-card)]",
+    archived: "shadow-[var(--shadow-archived-card)]",
+    other: "shadow-[var(--shadow-card)]",
+  }[stateSurface];
 
   if (layout === "compact") {
     return (
-      <Card className="min-w-0 border-0">
+      <Card
+        data-state-surface={stateSurface}
+        className={cn("min-w-0 border-0", stateShadow)}
+      >
         <CardContent className="grid min-w-0 gap-4 p-4 sm:grid-cols-[minmax(12rem,0.8fr)_minmax(0,1.2fr)]">
           <div className="min-w-0">
             <StatusBadge status={idea.status} />
@@ -59,8 +74,10 @@ export function EntityIdeaCard({
 
   return (
     <Card
+      data-state-surface={stateSurface}
       className={cn(
-        "min-w-0",
+        "min-w-0 transition-shadow",
+        stateShadow,
         layout === "featured" && "border-l-4 border-l-primary",
         layout === "working" && "border-l-4 border-l-signal",
       )}

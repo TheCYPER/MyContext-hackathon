@@ -23,7 +23,7 @@
   --color-signal: var(--signal);
   --color-signal-foreground: var(--signal-foreground);
   --color-notice: var(--notice);
-  --color-palette-green: #39896e;
+  --color-palette-green: #52796f;
   --color-palette-cream: #f6e9c3;
   --color-palette-terracotta: #c45d44;
   --color-palette-black: #191919;
@@ -36,7 +36,7 @@
   --card-foreground: var(--foreground);
   --popover: #f6e9c3;
   --popover-foreground: var(--foreground);
-  --primary: #39896e;
+  --primary: #52796f;
   --primary-foreground: #191919;
   --secondary: #f6e9c3;
   --secondary-foreground: #191919;
@@ -46,10 +46,14 @@
   --accent-foreground: #f6e9c3;
   --border: #191919;
   --input: var(--border);
-  --ring: #39896e;
+  --ring: #52796f;
   --signal: #c45d44;
   --signal-foreground: #191919;
   --notice: #f6e9c3;
+  --shadow-card: 5px 5px 0 rgb(25 25 25 / 14%);
+  --shadow-active-card: 5px 5px 0 rgb(82 121 111 / 32%);
+  --shadow-draft-card: 5px 5px 0 rgb(196 93 68 / 28%);
+  --shadow-archived-card: 4px 4px 0 rgb(25 25 25 / 16%);
   font-family:
     "IBM Plex Sans", "Helvetica Neue", Arial, ui-sans-serif, system-ui,
     sans-serif;
@@ -67,7 +71,7 @@
   --card-foreground: var(--foreground);
   --popover: #191919;
   --popover-foreground: var(--foreground);
-  --primary: #39896e;
+  --primary: #52796f;
   --primary-foreground: #f6e9c3;
   --secondary: #191919;
   --secondary-foreground: #f6e9c3;
@@ -81,6 +85,10 @@
   --signal: #c45d44;
   --signal-foreground: #191919;
   --notice: #191919;
+  --shadow-card: 5px 5px 0 rgb(246 233 195 / 16%);
+  --shadow-active-card: 5px 5px 0 rgb(82 121 111 / 48%);
+  --shadow-draft-card: 5px 5px 0 rgb(196 93 68 / 44%);
+  --shadow-archived-card: 4px 4px 0 rgb(246 233 195 / 18%);
 }
 
 * {
