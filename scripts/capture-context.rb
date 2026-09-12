@@ -34,15 +34,22 @@ module MyContextCapture
     end
   end
 
-  class UniqueHash < Hash
-    def []=(key, value)
-      raise Error.new("duplicate_field") if key?(key)
-      super
+  # Some native JSON versions populate Hash subclasses through rb_hash_aset,
+  # bypassing an overridden []=. A plain object keeps the parser on the custom
+  # object protocol, so duplicate checks run on every decoded key.
+  class UniqueObject
+    def initialize
+      @seen = {}
+    end
+
+    def []=(key, _value)
+      raise Error.new("duplicate_field") if @seen.key?(key)
+      @seen[key] = true
     end
   end
 
   def self.parse_json(text)
-    JSON.parse(text, object_class: UniqueHash) # Reject duplicates before creating mutable application state.
+    JSON.parse(text, object_class: UniqueObject) # Reject duplicates before creating mutable application state.
     JSON.parse(text)
   rescue JSON::ParserError, EncodingError, ArgumentError
     raise Error.new("invalid_json")

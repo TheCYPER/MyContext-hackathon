@@ -204,16 +204,21 @@ class ContextCaptureTest < Minitest::Test
   def test_secret_duplicate_unknown_and_control_fields_do_not_enter_queue
     secret = "ghp_" + "A" * 30
     cases = [
-      payload.merge("unknown" => "field"), payload.merge("title" => "bad\nheading"),
-      payload.merge("date" => "2026-02-30"), payload.merge("version" => 1.0),
-      payload.merge("facts" => [{ "text" => secret, "evidence" => "artifact", "source" => "fixture" }]),
-      JSON.generate(payload).sub('"version":1', '"version":1,"version":1'),
-      payload.merge("facts" => [{ "text" => "A" * 33_000, "evidence" => "inference", "source" => "fixture" }])
+      ["unknown field", payload.merge("unknown" => "field")],
+      ["control character", payload.merge("title" => "bad\nheading")],
+      ["impossible date", payload.merge("date" => "2026-02-30")],
+      ["non-integer version", payload.merge("version" => 1.0)],
+      ["secret", payload.merge("facts" => [{ "text" => secret, "evidence" => "artifact", "source" => "fixture" }])],
+      ["duplicate root key", JSON.generate(payload).sub('"version":1', '"version":1,"version":1')],
+      ["duplicate nested key", JSON.generate(payload).sub('"evidence":"user_confirmed"', '"evidence":"user_confirmed","evidence":"inference"')],
+      ["duplicate escaped key", JSON.generate(payload).sub('"version":1', '"version":1,"\u0076ersion":1')],
+      ["oversize input", payload.merge("facts" => [{ "text" => "A" * 33_000, "evidence" => "inference", "source" => "fixture" }])]
     ]
-    cases.each do |data|
+    cases.each do |name, data|
       result, status, output = run_capture(data)
-      refute status.success?
+      refute status.success?, "invalid variant accepted: #{name}"
       assert_equal false, result["ok"]
+      assert_equal "duplicate_field", result["error"], name if name.start_with?("duplicate")
       refute output.include?(secret)
       refute File.exist?(@state)
       assert_equal @original, head
