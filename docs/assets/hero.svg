@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title description">
+  <title id="title">MyContext: carry your academic and professional context into the next AI session</title>
+  <desc id="description">A concept illustration connects fictional records for Eval Notebook, StudyMap, an internship, and a research idea. A path below moves from working with AI, to keeping useful context, to continuing in a later session.</desc>
+  <defs>
+    <clipPath id="frame"><rect width="1200" height="640" rx="20"/></clipPath>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M2 2 6 6 2 10" fill="none" stroke="#315EDB" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="1200" height="640" fill="#FFFFFF"/>
+    <ellipse cx="995" cy="205" rx="467" ry="335" fill="#F3F7FF"/>
+    <g fill="none" stroke="#DFE8FA" stroke-width="1">
+      <circle cx="879" cy="275" r="119"/>
+      <circle cx="879" cy="275" r="190"/>
+      <circle cx="879" cy="275" r="259"/>
+    </g>
+    <g font-family="Avenir Next, Avenir, Segoe UI, Arial, sans-serif" fill="#142445">
+      <text x="60" y="132" font-size="82" font-weight="700" letter-spacing="-4">MyContext</text>
+      <text x="64" y="194" font-size="25" font-weight="500">Your work has context.</text>
+      <text x="64" y="229" font-size="25" font-weight="500">Bring it into the next session.</text>
+      <path d="M65 302V416" fill="none" stroke="#315EDB" stroke-width="3"/>
+      <text x="86" y="321" font-size="22">Projects you are building.</text>
+      <text x="86" y="359" font-size="22">Ideas you are exploring.</text>
+      <text x="86" y="397" font-size="22">What you have learned.</text>
+      <text x="64" y="470" font-size="17" fill="#566781">A private library for study, research and work.</text>
+    </g>
+
+    <!-- Connections are illustrative record links, not inferred semantic claims. -->
+    <g fill="none" stroke-width="2.5">
+      <path d="M791 148C791 197 844 207 866 232" stroke="#315EDB"/>
+      <path d="M923 275H980V263" stroke="#147D78"/>
+      <path d="M875 319V362C875 389 858 389 858 409" stroke="#7854CA"/>
+      <path d="M835 280H772C742 280 742 306 715 306" stroke="#315EDB"/>
+      <path d="M758 132C691 132 633 204 633 260" stroke="#C0CDEE" stroke-dasharray="5 7"/>
+      <path d="M1020 299C1057 364 1029 434 997 449" stroke="#C6D8DA" stroke-dasharray="5 7"/>
+    </g>
+
+    <g font-family="Avenir Next, Avenir, Segoe UI, Arial, sans-serif">
+      <g>
+        <rect x="641" y="62" width="300" height="87" rx="10" fill="#FFFFFF" stroke="#B5C8F5" stroke-width="1.5"/>
+        <rect x="641" y="62" width="5" height="87" rx="2.5" fill="#315EDB"/>
+        <path d="M665 88H679V102H665Z" fill="#EBF1FF" stroke="#315EDB" stroke-width="1.5"/>
+        <text x="691" y="100" font-size="16" fill="#315EDB">Project</text>
+        <text x="665" y="129" font-size="24" font-weight="600" fill="#142445">Eval Notebook</text>
+      </g>
+      <g>
+        <rect x="938" y="215" width="226" height="87" rx="10" fill="#FFFFFF" stroke="#A9D4CE" stroke-width="1.5"/>
+        <rect x="938" y="215" width="5" height="87" rx="2.5" fill="#147D78"/>
+        <path d="M963 243H977V253H963ZM968 243V240H972V243" fill="none" stroke="#147D78" stroke-width="1.5" stroke-linejoin="round"/>
+        <text x="989" y="253" font-size="16" fill="#147D78">Experience</text>
+        <text x="962" y="282" font-size="24" font-weight="600" fill="#142445">Internship</text>
+      </g>
+      <g>
+        <rect x="521" y="262" width="221" height="87" rx="10" fill="#FFFFFF" stroke="#B5C8F5" stroke-width="1.5"/>
+        <rect x="521" y="262" width="5" height="87" rx="2.5" fill="#315EDB"/>
+        <path d="M545 288H559V302H545Z" fill="#EBF1FF" stroke="#315EDB" stroke-width="1.5"/>
+        <text x="571" y="300" font-size="16" fill="#315EDB">Project</text>
+        <text x="545" y="329" font-size="24" font-weight="600" fill="#142445">StudyMap</text>
+      </g>
+      <g>
+        <rect x="699" y="408" width="374" height="87" rx="10" fill="#FFFFFF" stroke="#C9B9EB" stroke-width="1.5"/>
+        <rect x="699" y="408" width="5" height="87" rx="2.5" fill="#7854CA"/>
+        <path d="M731 433L739 441 731 449 723 441Z" fill="#F2EDFC" stroke="#7854CA" stroke-width="1.5"/>
+        <text x="751" y="446" font-size="16" fill="#7854CA">Research idea</text>
+        <text x="723" y="475" font-size="24" font-weight="600" fill="#142445">Evidence-linked retrieval</text>
+      </g>
+      <g>
+        <circle cx="879" cy="275" r="48" fill="#315EDB"/>
+        <circle cx="879" cy="275" r="35" fill="none" stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="1.4"/>
+        <path d="M852 275H906M879 248V302" fill="none" stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="1.4"/>
+        <circle cx="879" cy="275" r="8" fill="#FFFFFF"/>
+        <circle cx="879" cy="227" r="4" fill="#315EDB"/>
+        <circle cx="927" cy="275" r="4" fill="#315EDB"/>
+      </g>
+    </g>
+
+    <rect x="0" y="535" width="1200" height="105" fill="#EFF4FE"/>
+    <g font-family="Avenir Next, Avenir, Segoe UI, Arial, sans-serif" fill="#142445">
+      <text x="64" y="578" font-size="22" font-weight="600">Work with AI</text>
+      <text x="64" y="607" font-size="17" fill="#566781">In the project at hand</text>
+      <text x="470" y="578" font-size="22" font-weight="600">Keep useful context</text>
+      <text x="470" y="607" font-size="17" fill="#566781">Decisions, evidence, next steps</text>
+      <text x="892" y="578" font-size="22" font-weight="600">Continue the work</text>
+      <text x="892" y="607" font-size="17" fill="#566781">In the next session</text>
+    </g>
+    <g fill="none" stroke="#315EDB" stroke-width="2" marker-end="url(#arrow)">
+      <path d="M293 582H424"/>
+      <path d="M746 582H849"/>
+    </g>
+  </g>
+</svg>
