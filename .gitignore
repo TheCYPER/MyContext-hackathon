@@ -19,6 +19,8 @@
 /.worktrees/
 .DS_Store
 node_modules/
+dashboard/dist/
+*.tsbuildinfo
 coverage/
 *.log
 *.swp
