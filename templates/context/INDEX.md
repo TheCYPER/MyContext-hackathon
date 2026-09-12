@@ -2,18 +2,17 @@
 
 This is a blank private context scaffold. It contains no confirmed personal facts.
 
-Start with [Your context](profile/summary.md). This placeholder is not a knowledge record; there are no people, projects, goals, preferences, or graph nodes yet. Create records only from information the owner chooses to share and approves saving.
+Start with [Profile](profile/summary.md), then [Goals](profile/goals.md) and [Preferences](profile/preferences.md) when relevant.
 
 | Folder | Purpose |
 | --- | --- |
 | `profile/` | Owner-confirmed background, goals, and preferences |
 | `domains/` | Areas of learning or ongoing interest |
-| `projects/` | Personal plans, ongoing work, and current next steps |
+| `projects/` | Active work and current next steps |
 | `ideas/research/` | Unvalidated research possibilities |
 | `ideas/projects/` | Unvalidated project possibilities |
 | `experience/` | Current summaries of professional engagements |
 | `people/` | Appropriate relationship context and evidence |
-| `resources/` | Useful books, places, music, tools, and other things |
 | `journal/` | Dated events, decisions, and outcomes |
 | `sources/` | Deliberately selected, safe supporting material |
 

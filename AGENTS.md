@@ -1,12 +1,12 @@
 # MyContext software development
 
 This is the public application and skill source repository. Personal context lives
-in a separate local Git repository. `examples/demo/` separates fictional personal-life records from attributed public references;
+in a separate local Git repository. `examples/demo/` is fictional;
 `templates/context/` is an empty scaffold, not information about the user.
 
 - Work on software here under the user's task authorization. Run `npm test` before
   reporting a completed implementation. Do not read personal data to develop or
-  test software; use synthetic fixtures or reviewed, attributed public references.
+  test software; use synthetic fixtures.
 - Never copy an existing context repository, its `.git` history, session stores,
   credentials, personal exports, or local configuration into this repository.
 - Keep generated demo data, local settings, and skill links under ignored `.local/`

@@ -4,24 +4,6 @@ require "find"
 require "psych"
 require "date"
 require "time"
-require "uri"
-
-def public_web_source?(source)
-  return false unless source.is_a?(String) && source.start_with?("web:https://")
-  url = URI.parse(source.delete_prefix("web:"))
-  url.is_a?(URI::HTTPS) && url.host && !url.host.empty? && url.userinfo.nil?
-rescue URI::InvalidURIError
-  false
-end
-
-def duplicate_yaml_keys?(node)
-  return false unless node.respond_to?(:children) && node.children
-  if node.is_a?(Psych::Nodes::Mapping)
-    names = node.children.each_slice(2).map { |key, _value| key.respond_to?(:value) ? key.value : key.to_s }
-    return true if names.uniq.length != names.length
-  end
-  node.children.any? { |child| duplicate_yaml_keys?(child) }
-end
 
 root = File.expand_path(ARGV.fetch(0))
 allowed_dirs = %w[dashboard scripts skills templates examples meta docs tests .github .githooks]
@@ -56,29 +38,14 @@ Find.find(root) do |path|
   errors << "machine-specific home path: #{rel}" if text.match?(%r{/(?:Users|home)/[A-Za-z0-9_.-]+/})
   if rel.start_with?("examples/demo/", "templates/context/") && text.start_with?("---\n")
     begin
-      yaml = text.split("\n---\n", 2).first.delete_prefix("---\n")
-      errors << "duplicate distributed frontmatter key: #{rel}" if duplicate_yaml_keys?(Psych.parse_stream(yaml))
-      meta = Psych.safe_load(yaml, permitted_classes: [Date, Time], aliases: false)
+      meta = Psych.safe_load(text.split("\n---\n", 2).first.delete_prefix("---\n"), permitted_classes: [Date, Time], aliases: false)
       sources = meta.is_a?(Hash) && meta["sources"]
-      if rel.start_with?("templates/context/")
-        errors << "non-blank source in distributed template: #{rel}" unless sources == ["template:blank"]
-      elsif meta.is_a?(Hash) && meta["demo_kind"] == "fictional"
-        errors << "non-fictional source in fictional demo record: #{rel}" unless sources == ["demo:fictional"]
-      elsif meta.is_a?(Hash) && meta["demo_kind"] == "public_reference"
-        unless %w[person resource].include?(meta["type"]) && meta["privacy"] == "public" && meta["status"] == "active"
-          errors << "public reference requires a public, active person or resource: #{rel}"
-        end
-        web_sources = sources.is_a?(Array) ? sources.reject { |source| source == "demo:public-reference" } : []
-        unless sources.is_a?(Array) && sources.count("demo:public-reference") == 1 && !web_sources.empty? && web_sources.all? { |source| public_web_source?(source) }
-          errors << "public reference requires demo:public-reference and HTTPS web sources only: #{rel}"
-        end
-      else
-        errors << "demo record must declare demo_kind: fictional or public_reference: #{rel}"
-      end
+      expected = rel.start_with?("examples/demo/") ? "demo:fictional" : "template:blank"
+      errors << "non-synthetic source in distributed context: #{rel}" unless sources == [expected]
     rescue Psych::Exception
       errors << "invalid distributed frontmatter: #{rel}"
     end
   end
 end
 abort errors.join("\n") unless errors.empty?
-puts "public-check: OK (allowlisted source paths, fictional demo facts, and attributed public references)"
+puts "public-check: OK (allowlisted source paths and synthetic-only distributed context)"

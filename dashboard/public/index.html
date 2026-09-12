@@ -10,9 +10,9 @@
     >
     <meta
       name="description"
-      content="Your people, plans, memories, and interests, together in MyContext."
+      content="Margin is the local, read-only context observatory for MyContext."
     >
-    <title>MyContext · Personal context</title>
+    <title>Margin · Context Observatory</title>
     <link rel="stylesheet" href="/styles.css">
     <script src="/app.js" type="module"></script>
   </head>
@@ -21,28 +21,28 @@
 
     <div class="app-shell" id="app-shell">
       <aside class="index-spine" aria-label="Primary navigation">
-        <div class="brand-lockup" aria-label="MyContext personal context">
+        <div class="brand-lockup" aria-label="Margin, the MyContext control surface">
           <span class="brand-mark" aria-hidden="true"><span></span></span>
           <span class="brand-copy">
-            <strong>MyContext</strong>
-            <small>Personal context</small>
+            <strong>Margin</strong>
+            <small>Context Observatory</small>
           </span>
         </div>
 
         <nav class="primary-nav" aria-label="Workspace">
           <button class="nav-item is-active" type="button" data-view="desk" aria-current="page">
-            <span class="nav-glyph" aria-hidden="true">H</span>
-            <span>Home</span>
+            <span class="nav-glyph" aria-hidden="true">D</span>
+            <span>Desk</span>
           </button>
           <button class="nav-item" type="button" data-view="workstreams">
-            <span class="nav-glyph" aria-hidden="true">P</span>
-            <span>Plans</span>
+            <span class="nav-glyph" aria-hidden="true">W</span>
+            <span>Workstreams</span>
           </button>
           <button class="nav-item" type="button" data-view="ideas">
             <span class="nav-glyph" aria-hidden="true">I</span>
             <span>Ideas</span>
           </button>
-          <button class="nav-item" type="button" data-view="runs" hidden>
+          <button class="nav-item" type="button" data-view="runs">
             <span class="nav-glyph" aria-hidden="true">R</span>
             <span>Runs</span>
           </button>
@@ -50,39 +50,35 @@
             <span class="nav-glyph" aria-hidden="true">P</span>
             <span>People</span>
           </button>
-          <button class="nav-item" type="button" data-view="resources">
-            <span class="nav-glyph" aria-hidden="true">R</span>
-            <span>Resources</span>
-          </button>
-          <button class="nav-item" type="button" data-view="journal">
-            <span class="nav-glyph" aria-hidden="true">N</span>
-            <span>Notes</span>
+          <button class="nav-item" type="button" data-view="projects">
+            <span class="nav-glyph" aria-hidden="true">J</span>
+            <span>Projects</span>
           </button>
           <button class="nav-item" type="button" data-view="experience">
             <span class="nav-glyph" aria-hidden="true">E</span>
             <span>Experience</span>
           </button>
           <button class="nav-item" type="button" data-view="atlas">
-            <span class="nav-glyph" aria-hidden="true">C</span>
-            <span>Connections</span>
+            <span class="nav-glyph" aria-hidden="true">A</span>
+            <span>Atlas</span>
           </button>
           <button class="nav-item" type="button" data-view="system">
-            <span class="nav-glyph" aria-hidden="true">A</span>
-            <span>About</span>
+            <span class="nav-glyph" aria-hidden="true">S</span>
+            <span>System</span>
           </button>
         </nav>
 
         <div class="spine-status" id="spine-status" aria-live="polite">
           <span class="status-orbit is-loading" id="repo-orbit" aria-hidden="true"></span>
-          <span id="repo-short-status">Opening your context…</span>
+          <span id="repo-short-status">Reading Git HEAD…</span>
         </div>
       </aside>
 
       <section class="control-desk">
         <header class="desk-toolbar">
           <div class="desk-identity">
-            <span class="eyebrow">Your personal context</span>
-            <span class="revision-label" id="revision-label">Saved context · loading</span>
+            <span class="eyebrow">Local context observatory</span>
+            <span class="revision-label" id="revision-label">Canonical source · loading</span>
           </div>
 
           <div class="search-cluster" id="search-cluster">
@@ -93,7 +89,7 @@
                 type="search"
                 autocomplete="off"
                 spellcheck="false"
-                placeholder="Find a person, book, place, plan, or memory"
+                placeholder="Find a person, idea, project, experience, or decision"
                 aria-controls="search-results"
                 aria-expanded="false"
               >
@@ -102,12 +98,10 @@
             <select id="scope-filter" aria-label="Filter search scope">
               <option value="all">All context</option>
               <option value="person">People</option>
-              <option value="project">Plans</option>
-              <option value="resource">Resources</option>
-              <option value="journal">Notes</option>
+              <option value="project">Projects</option>
               <option value="idea">Ideas</option>
               <option value="experience">Experience</option>
-              <option value="domain">Life areas</option>
+              <option value="domain">Domains</option>
               <option value="draft">Drafts</option>
             </select>
             <div class="search-results" id="search-results" hidden></div>
@@ -127,17 +121,17 @@
 
         <div class="load-banner" id="load-banner" role="status">
           <span class="load-dash" aria-hidden="true"></span>
-          <span>Opening your saved context…</span>
+          <span>Projecting tracked context from Git HEAD…</span>
         </div>
 
         <main class="view-stage" id="main-content" tabindex="-1">
           <header class="view-heading">
             <div>
-              <span class="eyebrow" id="view-kicker">A little context</span>
-              <h1 id="view-title">Your life, with the context kept.</h1>
+              <span class="eyebrow" id="view-kicker">Human checkpoint</span>
+              <h1 id="view-title">What needs your judgment?</h1>
             </div>
             <p id="view-deck">
-              People you care about, things you are learning, and plans you want to make time for.
+              Durable work stays on the desk. Candidates wait in the margin.
             </p>
           </header>
           <div id="view-content" aria-live="polite"></div>
@@ -147,7 +141,7 @@
       <aside class="human-margin" id="human-margin" aria-labelledby="margin-title">
         <header class="margin-header">
           <div>
-            <span class="eyebrow">A little context</span>
+            <span class="eyebrow">Human checkpoint</span>
             <h2 id="margin-title">Needs your review</h2>
           </div>
           <span class="queue-count" id="queue-count">0</span>
@@ -163,7 +157,7 @@
 
         <footer class="margin-boundary">
           <span class="boundary-mark" aria-hidden="true"></span>
-          <p><strong>Review only.</strong> Your AI prepares changes separately. Saving changes requires your review; this dashboard cannot send messages.</p>
+          <p><strong>Review only.</strong> Stage 1 cannot send, apply, write, or mark outreach as sent.</p>
         </footer>
       </aside>
     </div>
@@ -181,7 +175,7 @@
         </header>
         <div class="inspector-body" id="inspector-body"></div>
         <footer class="inspector-footer">
-          <span>Saved context · read only</span>
+          <span>Read from tracked Git HEAD</span>
           <span id="inspector-revision"></span>
         </footer>
       </div>
@@ -190,7 +184,7 @@
     <div class="sr-only" id="live-region" aria-live="polite"></div>
 
     <noscript>
-      <div class="noscript-message">MyContext needs JavaScript to display your local saved context.</div>
+      <div class="noscript-message">Margin needs JavaScript to project the local read-only context API.</div>
     </noscript>
   </body>
 </html>

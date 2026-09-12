@@ -10,13 +10,10 @@ SCAFFOLD = !!ARGV.delete("--scaffold")
 ROOT = File.expand_path(ARGV[0] || File.join(__dir__, ".."))
 ERRORS = []
 
-TYPES = %w[profile domain experience person resource project idea journal draft session_export].freeze
+TYPES = %w[profile domain experience person project idea journal draft session_export].freeze
 PRIVACY = %w[public private restricted].freeze
 STATUSES = %w[active archived draft].freeze
 IDEA_KINDS = %w[research project].freeze
-RESOURCE_KINDS = %w[book course place tool music artwork].freeze
-DEMO_KINDS = %w[fictional public_reference].freeze
-EMPTY_PROFILE = "<!-- mycontext:empty-profile -->\n# Your context\n\nNo personal facts have been added yet. Add your profile only after reviewing the proposed changes.\n".freeze
 REQUIRED = %w[id type title privacy updated sources aliases tags links status].freeze
 ARRAY_FIELDS = %w[sources aliases tags links].freeze
 TEXT_EXTENSIONS = %w[.md .sh .rb .yml .yaml .toml].freeze
@@ -104,7 +101,6 @@ def expected_type(rel)
   when %r{\Aideas/} then "idea"
   when %r{\Apeople/[^/]+/drafts/} then "draft"
   when %r{\Apeople/} then "person"
-  when %r{\Aresources/} then "resource"
   when %r{\Ajournal/} then "journal"
   when %r{\Asources/session-exports/} then "session_export"
   end
@@ -125,7 +121,6 @@ rescue ArgumentError
 end
 
 def validate_knowledge(rel, content, ids)
-  return if rel == "profile/summary.md" && content == EMPTY_PROFILE
   data = parse_frontmatter(content, rel)
   return unless data
 
@@ -146,21 +141,6 @@ def validate_knowledge(rel, content, ids)
   error("#{rel}: invalid status #{data['status'].inspect}") unless STATUSES.include?(data["status"])
   error("#{rel}: title must be a non-empty string") unless data["title"].is_a?(String) && !data["title"].strip.empty?
   error("#{rel}: updated must be RFC3339 with a timezone") unless valid_timestamp?(data["updated"])
-  if data.key?("resource_kind") && (data["type"] != "resource" || !RESOURCE_KINDS.include?(data["resource_kind"]))
-    error("#{rel}: resource_kind requires type: resource and a supported resource kind")
-  end
-  if data.key?("demo_kind") && !DEMO_KINDS.include?(data["demo_kind"])
-    error("#{rel}: demo_kind must be fictional or public_reference")
-  end
-  if data.key?("accessed")
-    accessed = data["accessed"].to_s
-    begin
-      raise ArgumentError unless accessed.match?(/\A\d{4}-\d{2}-\d{2}\z/)
-      Date.iso8601(accessed)
-    rescue ArgumentError
-      error("#{rel}: accessed must be a valid YYYY-MM-DD date")
-    end
-  end
 
   ARRAY_FIELDS.each do |field|
     value = data[field]

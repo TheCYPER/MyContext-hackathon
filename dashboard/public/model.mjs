@@ -1,16 +1,15 @@
 export const ATLAS_LANES = Object.freeze([
-  { type: "domain", label: "Life areas", x: 36, width: 190 },
+  { type: "domain", label: "Domains", x: 36, width: 190 },
   { type: "idea", label: "Ideas", x: 266, width: 220 },
-  { type: "project", label: "Plans", x: 526, width: 220 },
+  { type: "project", label: "Projects", x: 526, width: 220 },
   { type: "experience", label: "Experience", x: 786, width: 220 },
   { type: "person", label: "People", x: 1046, width: 220 },
-  { type: "resource", label: "Resources", x: 1306, width: 220 },
-  { type: "profile", label: "Profile", x: 1566, width: 190 },
+  { type: "profile", label: "Profile", x: 1306, width: 190 },
 ]);
 
 const STATUS_ORDER = Object.freeze({ active: 0, draft: 1, archived: 2 });
 const TYPE_ORDER = Object.freeze({ idea: 0, project: 1, experience: 2, person: 3, domain: 4,
-  resource: 5, profile: 6, draft: 7, journal: 8 });
+  profile: 5, draft: 6, journal: 7 });
 
 export const LEGACY_RELATION_BOUNDARY = Object.freeze({
   kind: "related_to",
@@ -238,12 +237,8 @@ export function layoutFocusGraph(nodes, relations, focusId, depth = 1) {
   const secondRingCount = neighborhood.nodes.filter((node) =>
     neighborhood.distances.get(node.id) === 2).length;
   const expanded = secondRingCount > 0;
-  // Grow the outer ellipse with its population so saved labels remain readable
-  // when a larger personal collection is expanded to two hops.
-  const outerRadiusX = Math.max(570, secondRingCount * 150 * 1.5 / (2 * Math.PI));
-  const outerRadiusY = Math.max(350, secondRingCount * 64 * 1.5 / (2 * Math.PI));
-  const width = expanded ? Math.max(1420, 1180 + secondRingCount * 30, outerRadiusX * 2 + 220) : 1100;
-  const height = expanded ? Math.max(900, 760 + secondRingCount * 18, outerRadiusY * 2 + 160) : 680;
+  const width = expanded ? Math.max(1420, 1180 + secondRingCount * 30) : 1100;
+  const height = expanded ? Math.max(900, 760 + secondRingCount * 18) : 680;
   const center = { x: width / 2, y: height / 2 };
   const positions = new Map();
   const focus = neighborhood.nodes.find((node) => node.id === focusId);
@@ -253,8 +248,8 @@ export function layoutFocusGraph(nodes, relations, focusId, depth = 1) {
   for (const ring of [1, 2]) {
     const ringNodes = neighborhood.nodes.filter((node) => neighborhood.distances.get(node.id) === ring)
       .sort(compareNodes);
-    const radiusX = ring === 1 ? (expanded ? 360 : 310) : outerRadiusX;
-    const radiusY = ring === 1 ? (expanded ? 240 : 215) : outerRadiusY;
+    const radiusX = ring === 1 ? (expanded ? 360 : 310) : 570;
+    const radiusY = ring === 1 ? (expanded ? 240 : 215) : 350;
     const nodeWidth = ring === 1 ? 170 : 150;
     const nodeHeight = 64;
     const phase = ring === 2 && ringNodes.length > 1 ? Math.PI / ringNodes.length : 0;
@@ -311,29 +306,7 @@ export function layoutAtlas(nodes) {
     nodes: supported,
     positions,
     lanes: ATLAS_LANES,
-    width: 1792,
+    width: 1532,
     height: Math.max(410, 58 + longestLane * 74 + 28),
   };
-}
-
-/** Labels are explicit fixture metadata, never inferred from a record's name. */
-export function recordProvenance(entity) {
-  if (entity?.demoKind === "fictional") return "Fictional scenario";
-  if (entity?.demoKind === "public_reference") return "Public reference";
-  return null;
-}
-
-export function recordSearchText(entity) {
-  return [entity?.id, entity?.title, entity?.summary, entity?.resourceKind,
-    ...array(entity?.aliases), ...array(entity?.tags)]
-    .filter(Boolean).join(" ").toLocaleLowerCase();
-}
-
-export function sourceWebUrl(value) {
-  try {
-    const locator = String(value);
-    const url = new URL(locator.startsWith("web:") ? locator.slice(4) : locator);
-    return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password
-      ? url.href : null;
-  } catch { return null; }
 }

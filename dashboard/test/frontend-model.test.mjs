@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { ATLAS_LANES, buildLegacyRelations, chooseFocusNode, focusNeighborhood, layoutAtlas,
   layoutFocusGraph, rankWorkstreams, relationReferences, relationTrail,
-  recordProvenance, recordSearchText, sourceWebUrl, shortestPath } from "../public/model.mjs";
+  shortestPath } from "../public/model.mjs";
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DASHBOARD_DIR = path.resolve(TEST_DIR, "..");
@@ -34,15 +34,13 @@ test("atlas layout includes every supported node without an ID allowlist", () =>
     { id: "experience.studio", type: "experience", title: "Studio internship" },
     { id: "person.new", type: "person", title: "New person" },
     { id: "profile.summary", type: "profile", title: "Profile" },
-    { id: "resource.book", type: "resource", title: "A book" },
   ];
   const layout = layoutAtlas(nodes);
 
   assert.deepEqual(layout.nodes.map((node) => node.id).sort(), nodes.map((node) => node.id).sort());
   assert.equal(layout.positions.size, nodes.length);
   assert.notDeepEqual(layout.positions.get("project.future"), layout.positions.get("project.mycontext-margin"));
-  assert.equal(ATLAS_LANES.length, 7);
-  assert.ok(layout.positions.has("resource.book"));
+  assert.equal(ATLAS_LANES.length, 6);
   assert.equal(ATLAS_LANES.some((lane) => lane.type === "idea"), true);
   assert.equal(ATLAS_LANES.some((lane) => lane.type === "experience"), true);
   assert.ok(layout.positions.has("experience.studio"));
@@ -181,18 +179,17 @@ test("frontend keeps projection and mobile review boundaries explicit", async ()
   assert.match(app, /reverse \?/);
   assert.match(app, /experience: \(\) => renderRecordsView\("experience"\)/);
   assert.match(app, /ideas: renderIdeasView/);
-  assert.match(app, /resources: renderResourcesView/);
-  assert.match(app, /renderOnboarding/);
-  assert.match(app, /capabilities\?\.operations === true/);
-  assert.match(app, /Read and edit this draft before sharing\. Nothing has been sent\./);
+  assert.match(app, /Research trajectories/);
+  assert.match(app, /Project incubator/);
+  assert.match(app, /Project description/);
+  assert.match(app, /Advisor help/);
+  assert.match(app, /Work experiences/);
+  assert.match(app, /not finalized, signed, sent, or otherwise recorded as used/);
   assert.match(app, /dom\.skipLink\.inert = true/);
   assert.match(app, /setAttribute\("aria-modal", "true"\)/);
   assert.match(html, /draft record/);
   assert.match(html, /data-view="experience"/);
   assert.match(html, /data-view="ideas"/);
-  assert.match(html, /data-view="resources"/);
-  assert.match(html, /data-view="runs" hidden/);
-  assert.match(html, /option value="resource"/);
   assert.match(html, /option value="experience"/);
   assert.match(html, /option value="idea"/);
   assert.match(html, /tabindex="-1" aria-label="Close review margin"/);
@@ -200,52 +197,4 @@ test("frontend keeps projection and mobile review boundaries explicit", async ()
   assert.match(css, /\.atlas-node\.is-idea/);
   assert.match(css, /\.idea-trajectory/);
   assert.match(server, /"\.mjs": "text\/javascript; charset=utf-8"/);
-});
-
-test("fixture provenance is explicit and unmarked personal context stays unmarked", () => {
-  assert.equal(recordProvenance({ demoKind: "fictional" }), "Fictional scenario");
-  assert.equal(recordProvenance({ demoKind: "public_reference" }), "Public reference");
-  assert.equal(recordProvenance({ title: "A famous person", privacy: "public" }), null);
-  assert.equal(recordProvenance({ demoKind: "user_confirmed" }), null);
-});
-
-test("resource search includes kinds and safe source links exclude executable URLs", () => {
-  assert.ok(recordSearchText({ title: "A saved resource", resourceKind: "book", aliases: ["My next read"] }).includes("book"));
-  assert.ok(recordSearchText({ title: "A saved resource", resourceKind: "book", aliases: ["My next read"] }).includes("my next read"));
-  assert.equal(sourceWebUrl("https://example.org/book"), "https://example.org/book");
-  assert.equal(sourceWebUrl("web:https://example.org/book"), "https://example.org/book");
-  assert.equal(sourceWebUrl("web:http://example.org/book"), "http://example.org/book");
-  const credentialUrl = ["https:", "//", "fixture-user", ":", "fixture-value", "@", "example.org"].join("");
-  for (const value of ["javascript:alert(1)", "data:text/html,hi", "file:///etc/passwd", credentialUrl, `web:${credentialUrl}`, "web:javascript:alert(1)", "web:data:text/html,hi", "web:web:https://example.org", "fixture:fictional"]) {
-    assert.equal(sourceWebUrl(value), null);
-  }
-});
-
-test("larger personal collections expand the outer ring without label collisions", () => {
-  const nodes = [{ id: "profile.owner", type: "profile", title: "Owner" }];
-  const relations = [];
-  for (let i = 0; i < 8; i += 1) {
-    const id = `person.${i}`;
-    nodes.push({ id, type: "person", title: `Friend ${i}` });
-    relations.push({ id: `owner-${i}`, from: "profile.owner", to: id });
-    for (let j = 0; j < 4; j += 1) {
-      const resourceId = `resource.${i}.${j}`;
-      nodes.push({ id: resourceId, type: "resource", title: `Book ${i}.${j}` });
-      relations.push({ id: `book-${i}-${j}`, from: id, to: resourceId });
-    }
-  }
-  const layout = layoutFocusGraph(nodes, relations, "profile.owner", 2);
-  assert.equal(layout.positions.size, 41);
-  const boxes = [...layout.positions.entries()];
-  for (let i = 0; i < boxes.length; i += 1) {
-    const [id, box] = boxes[i];
-    assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= layout.width &&
-      box.y + box.height <= layout.height, `${id} stays inside the canvas`);
-    for (let j = i + 1; j < boxes.length; j += 1) {
-      const [otherId, other] = boxes[j];
-      assert.equal(box.x < other.x + other.width && box.x + box.width > other.x &&
-        box.y < other.y + other.height && box.y + box.height > other.y, false,
-      `${id} overlaps ${otherId}`);
-    }
-  }
 });

@@ -2,7 +2,6 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require "digest"
 require "json"
 require "open3"
 require "pathname"
@@ -11,7 +10,7 @@ class SetupError < StandardError; end
 
 SOURCE_ROOT = File.realpath(File.join(__dir__, ".."))
 FORMAT_VERSION = 1
-CANONICAL_DIRS = %w[profile domains projects ideas/research ideas/projects experience people resources journal sources].freeze
+CANONICAL_DIRS = %w[profile domains projects ideas/research ideas/projects experience people journal sources].freeze
 GIT_ENV = {
   "GIT_DIR" => nil, "GIT_WORK_TREE" => nil, "GIT_INDEX_FILE" => nil,
   "GIT_COMMON_DIR" => nil, "GIT_OBJECT_DIRECTORY" => nil,
@@ -50,8 +49,8 @@ end
 def validate_destination(destination, mode)
   local_root = File.join(SOURCE_ROOT, ".local")
   raise SetupError, "choose a context folder inside .local, not the .local container itself" if destination == local_root
-  if %w[demo empty].include?(mode) && destination != File.join(local_root, mode)
-    raise SetupError, "the #{mode} location must stay inside the source project's .local folder; remove its symbolic link first"
+  if mode == "demo" && destination != File.join(local_root, "demo")
+    raise SetupError, "the demo location must stay inside the source project's .local folder; remove its symbolic link first"
   end
   if within?(destination, SOURCE_ROOT) && !within?(destination, local_root)
     raise SetupError, "context data cannot be created in the source tree outside .local"
@@ -68,45 +67,24 @@ def validate_destination(destination, mode)
   end
 end
 
-def seed_digest(mode)
-  files = {}
-  roots = [File.join(SOURCE_ROOT, "templates", "context")]
-  roots << File.join(SOURCE_ROOT, "examples", "demo") if mode == "demo"
-  roots.each do |root|
-    raise SetupError, "required seed folder is missing: #{root}" unless File.directory?(root)
-    Dir.glob(File.join(root, "**", "*"), File::FNM_DOTMATCH).sort.each do |path|
-      next unless File.file?(path) || File.symlink?(path)
-      relative = path.delete_prefix(root + File::SEPARATOR)
-      files[relative] = File.symlink?(path) ? "symlink:#{File.readlink(path)}" : Digest::SHA256.file(path).hexdigest
-    end
-  end
-  %w[schema.md write-policy.md].each do |name|
-    files["meta/#{name}"] = Digest::SHA256.file(File.join(SOURCE_ROOT, "meta", name)).hexdigest
-  end
-  Digest::SHA256.hexdigest(JSON.generate([FORMAT_VERSION, mode, CANONICAL_DIRS, files.sort]))
-end
-
-def existing_managed_context!(destination, mode)
+def existing_demo!(destination)
   marker_path = File.join(destination, ".mycontext-setup.json")
   begin
     marker = JSON.parse(File.read(marker_path))
   rescue Errno::ENOENT, JSON::ParserError, Errno::ENOTDIR
-    raise SetupError, "#{mode} destination already exists without a matching setup marker; nothing was changed"
+    raise SetupError, "demo destination already exists without a matching setup marker; nothing was changed"
   end
-  unless marker.is_a?(Hash) && marker["format"] == FORMAT_VERSION && marker["mode"] == mode &&
+  unless marker == { "format" => FORMAT_VERSION, "mode" => "demo" } &&
       File.directory?(File.join(destination, ".git")) &&
       !File.symlink?(File.join(destination, ".git")) &&
       git(destination, "rev-parse", "--show-toplevel") == destination
-    raise SetupError, "existing #{mode} is not an independent setup repository; nothing was changed"
+    raise SetupError, "existing demo is not an independent setup repository; nothing was changed"
   end
   unless git(destination, "status", "--porcelain=v1", "--untracked-files=normal").empty?
-    raise SetupError, "#{mode} has local changes; setup will not overwrite them. Commit or preserve your changes before rerunning"
+    raise SetupError, "demo has local changes; setup will not overwrite them. Commit or preserve your changes before rerunning"
   end
   git(destination, "rev-parse", "--verify", "HEAD")
-  unless marker["seed_sha256"] == seed_digest(mode)
-    raise SetupError, "#{mode} seed is out of date or has no version fingerprint. Preserve this folder by moving it to a backup path, then rerun setup to create the current version. Nothing was changed"
-  end
-  puts "#{mode.capitalize} already exists with the current seed; existing context was preserved: #{destination}"
+  puts "Demo already exists and is unchanged: #{destination}"
 end
 
 def copy_tree(source, destination)
@@ -138,7 +116,7 @@ def create_context(destination, mode)
     FileUtils.mkdir_p(File.join(destination, "meta"))
     policies.each { |path| FileUtils.cp(path, File.join(destination, "meta", File.basename(path))) }
     File.symlink("AGENTS.md", File.join(destination, "CLAUDE.md"))
-    File.write(File.join(destination, ".mycontext-setup.json"), JSON.pretty_generate({ "format" => FORMAT_VERSION, "mode" => mode, "seed_sha256" => seed_digest(mode) }) + "\n")
+    File.write(File.join(destination, ".mycontext-setup.json"), JSON.pretty_generate({ "format" => FORMAT_VERSION, "mode" => mode }) + "\n")
     git(destination, "-c", "init.templateDir=", "init", "--initial-branch=main")
     git(destination, "add", "--all")
     git(destination, "commit", "--no-gpg-sign", "-m", mode == "demo" ? "Initialize fictional MyContext demo" : "Initialize blank private context")
@@ -147,7 +125,7 @@ def create_context(destination, mode)
     warn "setup: incomplete new scaffold remains at #{destination}; inspect it before removing or retrying"
     raise
   end
-  puts "Created #{mode == 'demo' ? 'fictional personal-assistant demo' : 'empty personal context (zero records)'}: #{destination}"
+  puts "Created #{mode == 'demo' ? 'fictional demo' : 'blank personal context'}: #{destination}"
   puts "Independent Git history; initial commit saved locally; no remote configured."
   puts "No packages or skills were installed."
 end
@@ -155,23 +133,22 @@ end
 begin
   if ARGV.empty? || %w[-h --help help].include?(ARGV.first)
     puts "Usage: scripts/setup.sh demo"
-    puts "       scripts/setup.sh empty"
     puts "       scripts/setup.sh personal /absolute/new/path"
     puts "Creates independent local Git data. No downloads, remote, or personal-data import."
     exit 0
   end
   mode = ARGV.shift
-  unless %w[demo empty personal].include?(mode)
-    raise SetupError, "unknown mode; use demo, empty, or personal /absolute/new/path"
+  unless %w[demo personal].include?(mode)
+    raise SetupError, "unknown mode; use demo or personal /absolute/new/path"
   end
-  raw_destination = %w[demo empty].include?(mode) ? File.join(SOURCE_ROOT, ".local", mode) : ARGV.shift
+  raw_destination = mode == "demo" ? File.join(SOURCE_ROOT, ".local", "demo") : ARGV.shift
   raise SetupError, "personal mode requires an absolute new destination path" unless raw_destination
   raise SetupError, "unexpected extra arguments" unless ARGV.empty?
   destination = resolved_new_path(raw_destination)
   validate_destination(destination, mode)
   if File.exist?(destination) || File.symlink?(destination)
     raise SetupError, "destination already exists; choose a new folder (nothing was changed)" if mode == "personal"
-    existing_managed_context!(destination, mode)
+    existing_demo!(destination)
   else
     create_context(destination, mode)
   end

@@ -6,14 +6,11 @@ require "json"
 require "open3"
 require "psych"
 require "time"
-ALLOWED_ROOTS = %w[profile domains projects ideas experience people resources journal].freeze
-ALLOWED_TYPES = %w[profile domain person resource project idea experience journal draft].freeze
+ALLOWED_ROOTS = %w[profile domains projects ideas experience people journal].freeze
+ALLOWED_TYPES = %w[profile domain person project idea experience journal draft].freeze
 ALLOWED_PRIVACY = %w[public private restricted].freeze
 ALLOWED_STATUS = %w[active archived draft].freeze
 ALLOWED_IDEA_KINDS = %w[research project].freeze
-ALLOWED_RESOURCE_KINDS = %w[book course place tool music artwork].freeze
-ALLOWED_DEMO_KINDS = %w[fictional public_reference].freeze
-EMPTY_PROFILE = "<!-- mycontext:empty-profile -->\n# Your context\n\nNo personal facts have been added yet. Add your profile only after reviewing the proposed changes.\n".freeze
 REQUIRED_ARRAYS = %w[sources aliases tags links].freeze
 MAX_DOCUMENT_BYTES = 1_048_576
 class ProjectionError < StandardError; end
@@ -70,7 +67,6 @@ def expected_type(path)
   when %r{\Aexperience/} then "experience"
   when %r{\Apeople/[^/]+/drafts/} then "draft"
   when %r{\Apeople/} then "person"
-  when %r{\Aresources/} then "resource"
   when %r{\Ajournal/} then "journal"
   end
 end
@@ -89,14 +85,6 @@ rescue ArgumentError
 end
 def valid_string_array?(value)
   value.is_a?(Array) && value.all? { |item| item.is_a?(String) && !item.strip.empty? }
-end
-def normalized_date(value)
-  text = value.to_s
-  return nil unless text.match?(/\A\d{4}-\d{2}-\d{2}\z/)
-  Date.iso8601(text)
-  text
-rescue ArgumentError
-  nil
 end
 def extract_summary(body)
   paragraphs = body.split(/\n{2,}/).map do |paragraph|
@@ -145,7 +133,6 @@ def section_body(sections, title)
   sections.find { |section| section["title"] == title }&.fetch("body", "").to_s
 end
 def entity_from_blob(path, content)
-  return [:placeholder, nil] if path == "profile/summary.md" && content == EMPTY_PROFILE
   return [:invalid, nil] if content.bytesize > MAX_DOCUMENT_BYTES
   parsed = parse_frontmatter(content)
   return [:invalid, nil] unless parsed
@@ -166,9 +153,6 @@ def entity_from_blob(path, content)
   return [:invalid, nil] unless REQUIRED_ARRAYS.all? { |field| valid_string_array?(data[field]) }
   return [:invalid, nil] if data["sources"].empty?
   return [:invalid, nil] if type == "draft" && status != "draft"
-  return [:invalid, nil] if data.key?("resource_kind") && (type != "resource" || !ALLOWED_RESOURCE_KINDS.include?(data["resource_kind"]))
-  return [:invalid, nil] if data.key?("demo_kind") && !ALLOWED_DEMO_KINDS.include?(data["demo_kind"])
-  return [:invalid, nil] if data.key?("accessed") && !normalized_date(data["accessed"])
   sections = extract_sections(body)
   role, parent_id = derive_role_and_parent(path, data)
   entity = data.slice("id", "type", "title", "privacy", "status", *REQUIRED_ARRAYS).merge(
@@ -177,9 +161,6 @@ def entity_from_blob(path, content)
     "sectionTitles" => sections.map { |section| section["title"] },
     "sections" => sections,
     "body" => body.strip)
-  entity["resourceKind"] = data["resource_kind"] if data.key?("resource_kind")
-  entity["demoKind"] = data["demo_kind"] if data.key?("demo_kind")
-  entity["accessed"] = normalized_date(data["accessed"]) if data.key?("accessed")
   if type == "idea"
     idea_kind = data["idea_kind"]
     return [:invalid, nil] unless ALLOWED_IDEA_KINDS.include?(idea_kind)
@@ -201,10 +182,10 @@ def entity_from_blob(path, content)
 end
 def graph_for(entities)
   nodes = entities.select do |entity|
-    %w[profile domain idea project experience person resource].include?(entity["type"]) &&
+    %w[profile domain idea project experience person].include?(entity["type"]) &&
       !%w[research draft event].include?(entity["role"])
   end.map do |entity|
-    entity.slice("id", "type", "title", "privacy", "status", "tags", "ideaKind", "resourceKind", "demoKind", "accessed")
+    entity.slice("id", "type", "title", "privacy", "status", "tags", "ideaKind")
   end
   nodes_by_id = nodes.to_h { |node| [node["id"], node] }
   edges_by_key = {}
@@ -288,7 +269,7 @@ def build_projection(root)
     result, entity = entity_from_blob(path, content)
     if result == :ok
       candidates << entity
-    elsif result != :placeholder
+    else
       excluded[result.to_s] += 1
     end
   end

@@ -1,33 +1,31 @@
 import { buildLegacyRelations, chooseFocusNode, layoutAtlas, layoutFocusGraph,
-relationReferences, relationTrail, rankWorkstreams, recordProvenance, recordSearchText, sourceWebUrl, shortestPath } from "./model.mjs";
+relationReferences, relationTrail, rankWorkstreams, shortestPath } from "./model.mjs";
 
 const API = Object.freeze({ snapshot: "/api/v1/snapshot",
 repo: "/api/v1/repo", entity: (id) => `/api/v1/entities/${encodeURIComponent(id)}`,
- });
-const VIEW_META = Object.freeze({
-  desk: { kicker: "A little context", title: "Your life, with the context kept.",
-    deck: "People you care about, things you are learning, and plans you want to make time for." },
-  workstreams: { kicker: "Make room for what matters", title: "What you have in mind.",
-    deck: "A trip, a reading habit, a class, a weekend with friends. Pick up where you left off." },
-  ideas: { kicker: "Room to explore", title: "Things you might try.",
-    deck: "Keep a spark of an idea before it becomes a plan." },
-  runs: { kicker: "Connected activity", title: "Tasks in progress.",
-    deck: "Only tasks registered with this local app appear here." },
-  people: { kicker: "People & relationships", title: "Remember the little things.",
-    deck: "Shared interests, conversations to return to, and the context behind a name." },
-  projects: { kicker: "Your plans", title: "What you have in mind.",
-    deck: "The details, people, and resources behind each plan." },
-  resources: { kicker: "Your shelves & saved places", title: "Things worth coming back to.",
-    deck: "Books, courses, places, music, and tools, connected to the rest of your life." },
-  journal: { kicker: "Notes & memories", title: "Pick up the thread.",
-    deck: "Reading notes, conversations, small discoveries, and decisions you want to remember." },
-  experience: { kicker: "What you have done", title: "Experiences that stay with you.",
-    deck: "Roles, milestones, and what you learned along the way." },
-  atlas: { kicker: "Connections", title: "See what belongs together.",
-    deck: "Explore the people, plans, and resources around one record. Open a connection to see what was recorded." },
-  system: { kicker: "Your local context", title: "How this space works.",
-    deck: "Saved Markdown, a local read-only view, and changes you review with your own AI." },
-});
+}); const VIEW_META = Object.freeze({
+desk: { kicker: "Human checkpoint",
+title: "What needs your judgment?", deck: "Durable work stays on the desk. Drafts and uncertain claims wait in the margin.",
+}, workstreams: {
+kicker: "Durable context", title: "Follow the work, not the activity.",
+deck: "Each line joins a project’s current state, evidence boundary, related people, and next question.", },
+ideas: { kicker: "Candidate trajectories",
+title: "Ideas before commitment.", deck: "Compare research submissions and project seeds without mistaking possibility for active work.", },
+runs: { kicker: "Ephemeral process",
+title: "What is the local harness doing?", deck: "Runs are temporary operations. A completed run never becomes durable context without review.",
+}, people: {
+kicker: "Relationship dossiers", title: "People are context, not leads.",
+deck: "Fit, relationship stage, project evidence, and next action stay visibly separate.", },
+projects: { kicker: "Evidence and boundaries",
+title: "Projects as they actually stand.", deck: "Current capability, negative results, open questions, and linked people remain inspectable.",
+}, experience: { kicker: "Professional record",
+title: "Work, situated in context.", deck: "Roles, responsibilities, evidence, and employer-facing drafts remain linked without turning experience into a project workstream.",
+}, atlas: {
+kicker: "Context aperture", title: "Follow one context thread at a time.",
+deck: "Focus on one record, inspect its nearest links, and ask why before treating proximity as meaning.", },
+system: { kicker: "Local boundary",
+title: "What Margin can—and cannot—see.", deck: "The control surface reads tracked Git state and exposes no mutation, email, or transcript API.",
+}, });
 const state = { snapshot: null,
 repo: null, entities: [],
 entityById: new Map(), detailCache: new Map(),
@@ -35,7 +33,7 @@ graphNodes: [], graphNodeById: new Map(), relations: [], graphRelations: [],
 focusId: null, focusDepth: 1, selectedRelationId: null, pathTargetId: null, pathResult: null,
 activeView: "desk", query: "",
 scope: "all", inspectorRequest: 0,
-loadError: null, repoError: null, resourceKind: "all", };
+loadError: null, repoError: null, };
 const dom = {}; document.addEventListener("DOMContentLoaded", initialize);
 async function initialize() { cacheDom();
 bindEvents(); selectInitialView();
@@ -52,7 +50,7 @@ state.focusId = chooseFocusNode(state.graphNodes, state.graphRelations, state.fo
 } if (repoResult.status === "fulfilled") {
 state.repo = repoResult.value.repo; } else {
 state.repoError = readableError(repoResult.reason); }
-updateCapabilityNavigation(); updateRepositoryStatus(); renderMargin();
+updateRepositoryStatus(); renderMargin();
 renderView(); finishLoading();
 } function cacheDom() {
 dom.navItems = [...document.querySelectorAll("[data-view]")]; dom.viewKicker = document.getElementById("view-kicker");
@@ -74,11 +72,10 @@ dom.marginMedia = window.matchMedia("(max-width: 960px)"); }
 function bindEvents() { for (const item of dom.navItems) {
 item.addEventListener("click", () => setView(item.dataset.view)); }
 dom.search.addEventListener("input", () => { state.query = dom.search.value.trim();
-renderSearchResults();
-if (["people", "projects", "experience", "ideas", "resources", "journal", "workstreams"].includes(state.activeView)) renderView(); });
+renderSearchResults(); });
 dom.search.addEventListener("focus", renderSearchResults); dom.scope.addEventListener("change", () => {
 state.scope = dom.scope.value; renderSearchResults();
-if (["people", "projects", "experience", "ideas", "resources", "journal", "workstreams"].includes(state.activeView)) renderView(); });
+if (["people", "projects", "experience", "ideas"].includes(state.activeView)) renderView(); });
 document.addEventListener("click", (event) => { if (!dom.searchCluster.contains(event.target)) closeSearch();
 }); document.addEventListener("keydown", handleGlobalKeydown);
 window.addEventListener("hashchange", selectInitialView); dom.marginToggle.addEventListener("click", openMargin);
@@ -93,24 +90,16 @@ dom.search.focus(); }
 if (event.key === "Escape") { closeSearch();
 closeMargin(); }
 } function selectInitialView() {
-const candidate = window.location.hash.replace(/^#/, ""); let view = Object.hasOwn(VIEW_META, candidate) ? candidate : state.activeView;
-if (view === "runs" && state.snapshot && state.snapshot.capabilities?.operations !== true) view = "desk";
+const candidate = window.location.hash.replace(/^#/, ""); const view = Object.hasOwn(VIEW_META, candidate) ? candidate : state.activeView;
 if (view !== state.activeView) { state.activeView = view;
 renderView(); }
 updateNav(); }
 function setView(view) { if (!Object.hasOwn(VIEW_META, view)) return;
-if (view === "runs" && state.snapshot?.capabilities?.operations !== true) view = "desk";
 state.activeView = view; history.replaceState(null, "", `#${view}`);
 closeSearch(); closeMargin();
 updateNav(); renderView();
 document.getElementById("main-content").focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" });
-} function updateCapabilityNavigation() {
-const enabled = state.snapshot?.capabilities?.operations === true;
-for (const item of dom.navItems) if (item.dataset.view === "runs") item.hidden = !enabled;
-if (state.activeView === "runs" && !enabled) state.activeView = "desk";
-updateNav();
-}
-function updateNav() {
+} function updateNav() {
 for (const item of dom.navItems) { const active = item.dataset.view === state.activeView;
 item.classList.toggle("is-active", active); if (active) item.setAttribute("aria-current", "page");
 else item.removeAttribute("aria-current"); }
@@ -124,7 +113,7 @@ if (!response.ok || !payload?.ok) { throw new Error(payload?.error?.message || `
 } finally { window.clearTimeout(timeout);
 } }
 function finishLoading() { if (state.loadError) {
-dom.loadBanner.classList.add("is-error"); replaceChildren(dom.loadBanner, make("span", "", `MyContext could not open saved context: ${state.loadError}`));
+dom.loadBanner.classList.add("is-error"); replaceChildren(dom.loadBanner, make("span", "", `Margin could not project canonical context: ${state.loadError}`));
 return; }
 if (state.repoError) { replaceChildren(dom.loadBanner, make("span", "", `Context loaded; live repository status is unavailable: ${state.repoError}`));
 return; }
@@ -137,123 +126,37 @@ if (!state.repo) { dom.repoOrbit.classList.add("is-alert"); const revision = sho
 dom.repoShortStatus.textContent = `${revision} · repository status unavailable`; dom.revisionLabel.textContent = `Tracked Git HEAD · ${revision}`;
 return; }
 if (state.repo.dirty) dom.repoOrbit.classList.add("is-alert"); const revision = shortRevision(state.repo.revision || state.snapshot.revision);
-dom.repoShortStatus.textContent = state.repo.dirty ? "Saved version · local edits waiting" : "Saved locally · read only"; dom.revisionLabel.textContent = `Saved context · ${revision}`;
+const branch = state.repo.branch || "detached HEAD"; const stateLabel = state.repo.dirty ? "working tree has local changes" : "working tree clean";
+dom.repoShortStatus.textContent = `${branch} · ${revision} · ${stateLabel}`; dom.revisionLabel.textContent = `Tracked Git HEAD · ${branch} · ${revision}`;
 } function renderView() {
 const meta = VIEW_META[state.activeView] || VIEW_META.desk; dom.viewKicker.textContent = meta.kicker;
 dom.viewTitle.textContent = meta.title; dom.viewDeck.textContent = meta.deck;
-document.title = `${meta.title} · MyContext`; if (!state.snapshot) {
+document.title = `${meta.title} · Margin`; if (!state.snapshot) {
 replaceChildren(dom.viewContent, renderLoadError()); return;
 } const renderers = {
 desk: renderDesk, workstreams: renderWorkstreamsView,
 runs: renderRunsView, ideas: renderIdeasView, people: () => renderRecordsView("person"),
-projects: () => renderRecordsView("project"), resources: renderResourcesView, journal: () => renderRecordsView("journal"), experience: () => renderRecordsView("experience"), atlas: renderAtlasView,
+projects: () => renderRecordsView("project"), experience: () => renderRecordsView("experience"), atlas: renderAtlasView,
 system: renderSystemView, };
 replaceChildren(dom.viewContent, renderers[state.activeView]()); }
-function renderDesk() {
-  const fragment = document.createDocumentFragment();
-  if (!state.entities.length) return renderOnboarding();
-  if (state.entities.some((entity) => recordProvenance(entity))) {
-    const note = make("aside", "demo-note");
-    note.append(make("strong", "", "A life in context · sample collection"),
-      make("p", "", "Records marked Fictional scenario illustrate an invented personal life. Public reference marks real books, figures, and places with linked sources."));
-    fragment.append(note);
-  }
-  const overview = make("div", "personal-overview");
-  for (const [type, label, view] of [["project", "Plans", "workstreams"], ["person", "People", "people"],
-    ["resource", "Resources", "resources"], ["journal", "Notes", "journal"]]) {
-    const button = make("button", "overview-count"); button.type = "button";
-    button.append(make("strong", "", countType(type)), make("span", "", label));
-    button.addEventListener("click", () => setView(view)); overview.append(button);
-  }
-  fragment.append(overview);
-  const plans = prioritizedWorkstreams().filter((plan) => plan.status !== "archived").slice(0, 4);
-  const plansSection = make("section", "section-block");
-  plansSection.append(sectionHeading("workstream-heading", "On your mind", "A few plans to pick up again"), renderWorkstreamBoard(plans));
-  fragment.append(plansSection);
-  const shelves = make("div", "home-shelves");
-  shelves.append(renderHomeShelf("People in the picture", "person", "people", 3),
-    renderHomeShelf("From your shelves", "resource", "resources", 3));
-  fragment.append(shelves);
-  const notes = state.entities.filter((entity) => entity.type === "journal")
-    .sort((a, b) => String(b.updated).localeCompare(String(a.updated)) || a.title.localeCompare(b.title)).slice(0, 3);
-  if (notes.length) {
-    const section = make("section", "section-block");
-    section.append(sectionHeading("recent-notes-heading", "Recently remembered", "Notes from the saved collection"));
-    const list = make("div", "record-list");
-    for (const note of notes) list.append(renderRecordRow(note)); section.append(list); fragment.append(section);
-  }
-  const reviewItems = reviewQueue();
-  if (reviewItems.length) {
-    const section = make("section", "section-block");
-    section.append(sectionHeading("judgment-heading", "For your review", `${reviewItems.length} draft${reviewItems.length === 1 ? "" : "s"} to look over`));
-    const list = make("div", "judgment-lead");
-    for (const item of reviewItems.slice(0, 2)) list.append(renderJudgmentRow(item));
-    section.append(list); fragment.append(section);
-  }
-  if (state.snapshot.capabilities?.operations === true) {
-    const section = make("section", "section-block");
-    section.append(sectionHeading("desk-runs-heading", "Connected activity", "Tasks registered with this app"), renderOperations());
-    fragment.append(section);
-  }
-  return fragment;
-}
-function renderHomeShelf(title, type, view, limit) {
-  const section = make("section", "section-block home-shelf");
-  section.append(sectionHeading(`home-${type}-heading`, title, ""));
-  const records = state.entities.filter((entity) => entity.type === type)
-    .sort((a, b) => Number(a.demoKind === "public_reference") - Number(b.demoKind === "public_reference") ||
-      String(b.updated).localeCompare(String(a.updated)) || a.title.localeCompare(b.title)).slice(0, limit);
-  for (const record of records) {
-    const button = make("button", "home-shelf-item"); button.type = "button";
-    const meta = make("span", "record-badges"); appendRecordBadges(meta, record);
-    button.append(make("strong", "", record.title), make("span", "", record.summary || "Open this record"), meta);
-    button.addEventListener("click", () => openEntity(record.id)); section.append(button);
-  }
-  if (!records.length) section.append(make("p", "section-note", "A little space for the next thing you want to remember."));
-  const more = make("button", "inspect-button", "See all"); more.type = "button";
-  more.addEventListener("click", () => setView(view)); section.append(more); return section;
-}
-function renderOnboarding() {
-  const section = make("section", "empty-context");
-  section.append(make("span", "eyebrow", "A fresh start"), make("h2", "", "This space is yours to fill."),
-    make("p", "", "Start with a little about yourself, someone you want to remember, or something you are looking forward to."));
-  const examples = make("div", "onboarding-examples");
-  for (const [title, copy] of [["About you", "Interests, preferences, and how you like your AI to help."],
-    ["People", "A friend’s favorite book or a conversation to return to."],
-    ["Plans & resources", "A trip, a course, a recipe, or your next read."]]) {
-    const card = make("div"); card.append(make("h3", "", title), make("p", "", copy)); examples.append(card);
-  }
-  section.append(examples, make("h3", "", "Start a conversation with your AI"),
-    make("blockquote", "onboarding-prompt", "Help me set up my personal MyContext. Read this context folder’s instructions, ask me about my interests and one thing I want to remember, then show me a proposed update to review."),
-    make("p", "", "Open your personal context folder with your AI and share this prompt. Once you review and save your first records, refresh this page to see them here."));
-  return section;
-}
-function renderWorkstreamsView() {
-  const section = make("section", "section-block"); const plans = prioritizedWorkstreams()
-    .filter((plan) => matchesQuery(state.entityById.get(plan.id) || plan));
-  section.append(sectionHeading("all-workstreams-heading", "Your plans", `${plans.length} saved plans`), renderWorkstreamBoard(plans));
-  return section;
-}
-function renderResourcesView() {
-  const section = make("section", "section-block");
-  const allResources = state.entities.filter((entity) => entity.type === "resource");
-  const kinds = [...new Set(allResources.map((entity) => entity.resourceKind).filter(Boolean))].sort();
-  if (!kinds.includes(state.resourceKind)) state.resourceKind = "all";
-  const filters = make("div", "resource-filters"); filters.setAttribute("aria-label", "Resource kind");
-  for (const kind of ["all", ...kinds]) {
-    const button = make("button", `aperture-control${state.resourceKind === kind ? " is-active" : ""}`, kind === "all" ? "All resources" : humanize(kind));
-    button.type = "button"; button.dataset.resourceKind = kind;
-    button.setAttribute("aria-pressed", String(state.resourceKind === kind));
-    button.addEventListener("click", () => { state.resourceKind = kind; renderViewAndFocus(`[data-resource-kind="${kind}"]`); }); filters.append(button);
-  }
-  const records = allResources.filter((entity) => state.resourceKind === "all" || entity.resourceKind === state.resourceKind)
-    .filter(matchesQuery).sort((a, b) => a.title.localeCompare(b.title));
-  section.append(sectionHeading("resource-records-heading", "Your collection", `${records.length} resources`), filters);
-  if (!records.length) section.append(renderEmpty("Room on your shelves.", "Save a book, course, place, or tool with your AI, or try another search."));
-  else { const list = make("div", "record-list relation-record-list");
-    for (const record of records) list.append(renderRecordRow(record)); section.append(list); }
-  return section;
-}
+function renderDesk() { const fragment = document.createDocumentFragment();
+const reviewItems = reviewQueue(); const workstreams = prioritizedWorkstreams().slice(0, 4);
+const judgmentSection = make("section", "section-block"); judgmentSection.setAttribute("aria-labelledby", "judgment-heading");
+judgmentSection.append(sectionHeading("judgment-heading", "Waiting at the margin", `${reviewItems.length} read-only review item${reviewItems.length === 1 ? "" : "s"}`)); if (reviewItems.length) {
+const list = make("div", "judgment-lead"); for (const item of reviewItems.slice(0, 3)) list.append(renderJudgmentRow(item));
+judgmentSection.append(list); } else {
+judgmentSection.append(renderEmpty("Nothing needs your decision.", "No draft or context change was applied.")); }
+fragment.append(judgmentSection); const workSection = make("section", "section-block");
+workSection.setAttribute("aria-labelledby", "workstream-heading"); workSection.append(sectionHeading("workstream-heading", "Durable workstreams", "Canonical project state · not live task activity"));
+workSection.append(renderWorkstreamBoard(workstreams)); fragment.append(workSection);
+const runsSection = make("section", "section-block"); runsSection.setAttribute("aria-labelledby", "desk-runs-heading");
+runsSection.append(sectionHeading("desk-runs-heading", "Live runs", "Only operations registered with this local harness")); runsSection.append(renderOperations());
+fragment.append(runsSection); return fragment;
+} function renderWorkstreamsView() {
+const fragment = document.createDocumentFragment(); const workstreams = prioritizedWorkstreams();
+const intro = make("section", "section-block"); intro.append(sectionHeading("all-workstreams-heading", "Project lines", `${workstreams.length} tracked projects from Git HEAD`));
+intro.append(renderWorkstreamBoard(workstreams)); fragment.append(intro);
+return fragment; }
 function renderRunsView() { const fragment = document.createDocumentFragment();
 const section = make("section", "section-block"); section.append(sectionHeading("runs-heading", "App-managed operations", "Ephemeral · never canonical by default"));
 section.append(renderOperations()); fragment.append(section);
@@ -263,30 +166,60 @@ boundary.append(renderBoundaryList([ "Margin does not inspect other Codex or Cla
 "A completed run still requires human review before any durable context change.", ]));
 fragment.append(boundary); return fragment;
 } function renderIdeasView() {
-  const section = make("section", "section-block idea-section");
-  const ideas = state.entities.filter((entity) => entity.type === "idea").filter(matchesQuery)
-    .sort((a, b) => a.title.localeCompare(b.title));
-  section.append(sectionHeading("ideas-heading", "For another day", `${ideas.length} ideas to explore`));
-  if (!ideas.length) section.append(renderEmpty("An idea can start small.", "Keep something you would like to try with your AI, or change the search text."));
-  else { const list = make("div", "record-list relation-record-list");
-    for (const idea of ideas) list.append(renderRecordRow(idea)); section.append(list); }
-  return section;
-}
-function renderRecordsView(type) {
+const fragment = document.createDocumentFragment(); const ideas = state.entities
+.filter((entity) => entity.type === "idea") .filter(matchesQuery)
+.sort((left, right) => left.title.localeCompare(right.title));
+const research = ideas.filter((idea) => idea.ideaKind === "research");
+const projects = ideas.filter((idea) => idea.ideaKind === "project");
+const researchSection = make("section", "section-block idea-section");
+researchSection.append(sectionHeading("research-ideas-heading", "Research trajectories", `${research.length} school-ready candidate form${research.length === 1 ? "" : "s"}`));
+if (!research.length) researchSection.append(renderEmpty("No research idea matches this view.", "Change the search text or add a canonical research idea."));
+else { const rail = make("div", "idea-trajectory"); research.forEach((idea, index) => rail.append(renderResearchIdea(idea, index)));
+researchSection.append(rail); }
+const projectSection = make("section", "section-block idea-section");
+projectSection.append(sectionHeading("project-ideas-heading", "Project incubator", `${projects.length} uncommitted product or build seed${projects.length === 1 ? "" : "s"}`));
+if (!projects.length) projectSection.append(renderEmpty("No project idea matches this view.", "Project ideas stay separate from active workstreams until selected."));
+else { const incubator = make("div", "idea-incubator"); for (const idea of projects) incubator.append(renderProjectIdea(idea));
+projectSection.append(incubator); }
+fragment.append(researchSection, projectSection); return fragment;
+} function renderResearchIdea(idea, index) {
+const article = make("article", "research-idea"); const marker = make("div", "idea-marker");
+marker.append(make("span", "idea-sequence", `R${String(index + 1).padStart(2, "0")}`), make("span", "idea-node"));
+const body = make("div", "research-idea-body"); const header = make("header", "idea-card-header");
+const title = make("button", "idea-title", idea.submission?.projectTitle || idea.title); title.type = "button";
+title.addEventListener("click", () => openEntity(idea.id)); const status = make("span", "status-label", idea.status || "draft");
+status.dataset.status = safeToken(idea.status); header.append(title, status); body.append(header);
+const fields = make("div", "research-submission-grid"); fields.append(
+ideaField("Project description", idea.submission?.projectDescription || idea.summary || "No project description is projected."),
+ideaField("Advisor help", idea.submission?.advisorHelp || "No advisor-help statement is projected."));
+body.append(fields, renderIdeaFooter(idea)); article.append(marker, body); return article;
+} function renderProjectIdea(idea) {
+const article = make("article", "project-idea-card"); const signal = make("div", "project-idea-signal");
+signal.append(make("span", "idea-kind", "Project seed"), make("span", "status-label", idea.status || "draft"));
+signal.lastChild.dataset.status = safeToken(idea.status); const title = make("button", "idea-title", idea.title); title.type = "button";
+title.addEventListener("click", () => openEntity(idea.id)); article.append(signal, title,
+make("p", "project-idea-summary", idea.summary || "No problem statement is projected."));
+const tags = make("div", "tag-list"); for (const tag of asArray(idea.tags).slice(0, 4)) tags.append(make("span", "tag", tag));
+article.append(tags, renderIdeaFooter(idea)); return article;
+} function ideaField(label, value) {
+const field = make("section", "idea-field"); field.append(make("h3", "", label), make("p", "", value)); return field;
+} function renderIdeaFooter(idea) {
+const footer = make("footer", "idea-footer"); footer.append(renderRelationTrail(idea)); return footer;
+} function renderRecordsView(type) {
 const fragment = document.createDocumentFragment(); const scope = type;
 const records = state.entities .filter((entity) => entity.type === scope && entity.role !== "research")
-.filter(matchesQuery) .sort((a, b) => type === "journal" ? String(b.updated).localeCompare(String(a.updated)) || a.title.localeCompare(b.title) : a.title.localeCompare(b.title));
+.filter(matchesQuery) .sort((a, b) => a.title.localeCompare(b.title));
 const section = make("section", "section-block"); const noun = ({
-person: "people", project: "plans", experience: "experiences", journal: "notes & memories",
+person: "dossiers", project: "project records", experience: "work experience records",
 })[type] || "canonical records";
-section.append(sectionHeading(`${type}-records-heading`, noun[0].toUpperCase() + noun.slice(1), `${records.length} saved records`)); if (!records.length) {
-section.append(renderEmpty(`No ${noun} match this view.`, "Try another search, or save your first record with your AI.")); } else {
+section.append(sectionHeading(`${type}-records-heading`, noun[0].toUpperCase() + noun.slice(1), `${records.length} visible from tracked Git HEAD`)); if (!records.length) {
+section.append(renderEmpty(`No ${noun} match this view.`, "Change the search text or return to all context.")); } else {
 const list = make("div", "record-list relation-record-list"); for (const record of records) list.append(renderRecordRow(record));
 section.append(list); }
 fragment.append(section); return fragment;
 } function renderAtlasView() {
 const fragment = document.createDocumentFragment(); const section = make("section", "section-block");
-section.append(sectionHeading("atlas-heading", "Around one record", "Saved links connect your people, plans, and resources"));
+section.append(sectionHeading("atlas-heading", "Context aperture", "One hop by default · every edge is a legacy link whose reason is not structured"));
 if (!state.graphNodes.length) {
 section.append(renderEmpty("No visible relationship exists yet.", "The aperture only uses visible canonical frontmatter links.")); } else {
 state.focusId = chooseFocusNode(state.graphNodes, state.graphRelations, state.focusId);
@@ -304,8 +237,7 @@ ledgerGroup("Canonical source", [ ["Revision", shortRevision(repo.revision || sn
 ["Branch", state.repo ? (repo.branch || "detached HEAD") : "status unavailable"], ["Projection", repo.canonicalSource || boundaries.canonicalSource || "git-head"],
 ["Working tree", state.repo ? (repo.dirty ? "local changes present; not projected" : "clean") : "status unavailable"], ]),
 ledgerGroup("Knowledge shape", [ ["Visible records", counts.total ?? state.entities.length],
-["Plans", counts.byType?.project ?? countType("project")], ["Experiences", counts.byType?.experience ?? countType("experience")],
-["Resources", counts.byType?.resource ?? countType("resource")],
+["Projects", counts.byType?.project ?? countType("project")], ["Work experiences", counts.byType?.experience ?? countType("experience")],
 ["Ideas", counts.byType?.idea ?? countType("idea")],
 ["People records", counts.byType?.person ?? countType("person")],
 ["Drafts", counts.byType?.draft ?? countType("draft")], ]),
@@ -326,7 +258,7 @@ const items = reviewQueue(); dom.queueCount.textContent = String(items.length);
 dom.mobileQueueCount.textContent = String(items.length); replaceChildren(dom.queue);
 if (!state.snapshot) { dom.queue.append(make("p", "margin-empty", "Canonical review items are unavailable."));
 return; }
-if (!items.length) { dom.queue.append(make("p", "margin-empty", "All clear for now. Drafts you prepare with your AI will appear here for review."));
+if (!items.length) { dom.queue.append(make("p", "margin-empty", "Nothing needs your decision. No draft or context change was applied."));
 return; }
 for (const item of items) { const article = make("article", "margin-item");
 article.append( make("span", "judgment-kind", reviewKind(item)),
@@ -345,14 +277,13 @@ inspect.type = "button"; inspect.addEventListener("click", () => openEntity(item
 row.append(inspect); } else {
 row.append(make("span", "section-note", "No visible canonical target")); }
 return row; }
-function renderWorkstreamBoard(workstreams) { if (!workstreams.length) return renderEmpty("What would you like to make time for?", "Add a plan with your AI, or try another search.");
+function renderWorkstreamBoard(workstreams) { if (!workstreams.length) return renderEmpty("No durable workstream is visible.", "Only tracked, non-restricted project records appear here.");
 const board = make("div", "workstream-board"); workstreams.forEach((workstream, index) => {
 const row = make("article", "workstream-row"); row.append(make("div", "workstream-index", String(index + 1).padStart(2, "0")));
 const main = make("div", "workstream-main"); const titleButton = make("button", "text-button", workstream.title || workstream.id);
 titleButton.type = "button"; titleButton.addEventListener("click", () => openEntity(workstream.id));
 const heading = make("h3"); heading.append(titleButton);
-const badges = make("div", "record-badges"); appendRecordBadges(badges, state.entityById.get(workstream.id) || workstream);
-main.append(heading, badges, make("p", "", workstream.summary || "No summary is available in the tracked canonical record.")); const related = linkedIds(workstream);
+main.append(heading, make("p", "", workstream.summary || "No summary is available in the tracked canonical record.")); const related = linkedIds(workstream);
 if (related.length) { const thread = make("div", "entity-thread");
 for (const id of related.slice(0, 5)) { const entity = state.entityById.get(id);
 if (!entity) continue; const node = make("button", "thread-node", entity.title);
@@ -360,14 +291,13 @@ node.type = "button"; node.addEventListener("click", () => openEntity(entity.id)
 thread.append(node); }
 if (thread.childElementCount) main.append(thread); }
 row.append(main); const focus = make("div", "workstream-focus");
-focus.append(make("span", "", "Next small step")); focus.append(make("p", "", workstream.nextAction || attentionText(workstream)));
+focus.append(make("span", "", "Current attention")); focus.append(make("p", "", workstream.nextAction || attentionText(workstream)));
 row.append(focus); board.append(row);
 }); return board;
 } function renderRecordRow(record) {
 const row = make("article", "record-row relation-record"); const open = make("button", "record-open"); open.type = "button";
 open.addEventListener("click", () => openEntity(record.id)); const title = make("span", "record-title");
-title.append(make("strong", "", record.title));
-const badges = make("span", "record-badges"); appendRecordBadges(badges, record); title.append(badges); open.append(title, make("span", "record-summary", record.summary || "No summary available."));
+title.append(make("strong", "", record.title), make("span", "record-id", record.id)); open.append(title, make("span", "record-summary", record.summary || "No summary available."));
 const tags = make("span", "tag-list"); for (const tag of asArray(record.tags).slice(0, 3)) tags.append(make("span", "tag", tag));
 open.append(tags); const status = make("span", "status-label", record.status || "unknown");
 status.dataset.status = safeToken(record.status); open.append(status); row.append(open, renderRelationTrail(record));
@@ -375,11 +305,11 @@ return row; }
 
 function renderRelationTrail(record) {
 const trail = make("div", "relation-trail"); const header = make("div", "relation-trail-header");
-header.append(make("span", "relation-trail-label", "Connected context"));
-if (state.graphNodeById.has(record.id)) { const focus = make("button", "relation-focus", "See connections"); focus.type = "button";
+header.append(make("span", "relation-trail-label", "Relation trail"));
+if (state.graphNodeById.has(record.id)) { const focus = make("button", "relation-focus", "Focus in aperture"); focus.type = "button";
 focus.addEventListener("click", () => openInAperture(record.id)); header.append(focus); }
 trail.append(header); const items = relationTrail(state.relations, record.id);
-if (!items.length) { trail.append(make("span", "relation-trail-empty", "No connections saved yet.")); return trail; }
+if (!items.length) { trail.append(make("span", "relation-trail-empty", "No visible canonical links.")); return trail; }
 const list = make("div", "relation-trail-nodes"); for (const item of items.slice(0, 4)) {
 const related = state.entityById.get(item.otherId); if (!related) continue;
 const marker = item.direction === "mutual" ? "↔" : item.direction === "outgoing" ? "→" : "←";
@@ -387,7 +317,7 @@ const button = make("button", "relation-trail-node", `${marker} ${related.title}
 button.title = "Legacy link · reason not structured · open canonical record";
 button.addEventListener("click", () => openEntity(related.id)); list.append(button); }
 if (items.length > 4) list.append(make("span", "relation-trail-more", `+${items.length - 4}`));
-trail.append(list); return trail;
+trail.append(list, make("span", "relation-boundary", "Legacy link · reason not structured")); return trail;
 }
 function renderOperations() { const operations = asArray(state.snapshot?.operations);
 if (!operations.length) { return renderEmpty(
@@ -465,14 +395,14 @@ if (!box) return; const className = `aperture-node is-${safeToken(node.type)}${f
 const action = flags.focus ? "Inspect" : "Focus on"; const group = svgNode("g", { class: className, tabindex: "0", role: "button",
 "data-node-id": node.id,
 "aria-label": `${action} ${node.title}; ${flags.distance === 0 ? "current focus" : `${flags.distance} hop${flags.distance === 1 ? "" : "s"} away`}` });
-group.append(svgTextNode("title", {}, `${node.title} · ${entityTypeLabel(node)} · ${recordProvenance(node) || node.status}`), svgNode("rect", {
+group.append(svgTextNode("title", {}, `${node.title} · ${node.type} · ${node.status}`), svgNode("rect", {
 x: box.x, y: box.y, width: box.width, height: box.height, rx: flags.focus ? 18 : node.type === "person" ? box.height / 2 : 10,
 class: "aperture-node-surface",
 }));
 const lines = wrapLabel(node.title, flags.focus ? 24 : 19); const title = svgNode("text", { x: box.x + 14, y: box.y + (flags.focus ? 30 : 23), class: "aperture-node-title" });
 lines.forEach((line, index) => title.append(svgTextNode("tspan", { x: box.x + 14, dy: index === 0 ? 0 : 15 }, line))); group.append(title);
 group.append(svgTextNode("text", { x: box.x + box.width - 13, y: box.y + box.height - 10,
-class: "aperture-node-meta", "text-anchor": "end" }, flags.focus ? `${entityTypeLabel(node)} · inspect` : `${entityTypeLabel(node)} · refocus`));
+class: "aperture-node-meta", "text-anchor": "end" }, flags.focus ? `${node.type} · inspect` : `${node.type} · refocus`));
 const activate = () => flags.focus ? openEntity(node.id) : setGraphFocus(node.id);
 group.addEventListener("click", activate); group.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") {
 event.preventDefault(); activate(); } }); svg.append(group);
@@ -561,9 +491,9 @@ function makeOption(value, label) { const option = make("option", "", label); op
 function buildAtlas(nodes, edges) {
 const frame = make("div", "atlas-frame"); const toolbar = make("div", "atlas-toolbar");
 const legend = make("div", "atlas-legend"); legend.append(
-legendKey("legend-shape is-domain", "Life area"), legendKey("legend-shape is-idea", "Idea"), legendKey("legend-shape", "Plan"),
+legendKey("legend-shape is-domain", "Domain"), legendKey("legend-shape is-idea", "Idea"), legendKey("legend-shape", "Project"),
 legendKey("legend-shape is-experience", "Experience"),
-legendKey("legend-shape is-person", "Person"), legendKey("legend-shape is-resource", "Resource"), legendKey("legend-shape is-profile", "Profile"),
+legendKey("legend-shape is-person", "Person"), legendKey("legend-shape is-profile", "Profile"),
 legendKey("legend-line is-generic", "Legacy link · reason not structured"), );
 toolbar.append(legend, make("span", "section-note", "Select any node to bring it into focus")); frame.append(toolbar);
 const layout = layoutAtlas(nodes); const scroll = make("div", "atlas-scroll"); const svg = svgNode("svg", {
@@ -587,7 +517,7 @@ svg.append(svgNode("path", { d: pathData, class: "atlas-edge is-generic" }));
 const group = svgNode("g", { class: `atlas-node is-${safeToken(node.type)}`,
 tabindex: "0", role: "button",
 "aria-label": `Focus relationship view on ${node.title}`, });
-group.append(svgTextNode("title", {}, `${node.title} · ${entityTypeLabel(node)} · ${recordProvenance(node) || node.status}`)); const radius = node.type === "domain" ? 26 : node.type === "person" ? 18 : node.type === "experience" ? 10 : node.type === "idea" ? 2 : 4;
+group.append(svgTextNode("title", {}, `${node.title} · ${node.type} · ${node.status}`)); const radius = node.type === "domain" ? 26 : node.type === "person" ? 18 : node.type === "experience" ? 10 : node.type === "idea" ? 2 : 4;
 group.append(svgNode("rect", { x: box.x,
 y: box.y, width: box.width,
 height: box.height, rx: radius,
@@ -597,7 +527,7 @@ lines.slice(0, 2).forEach((line, index) => { title.append(svgTextNode("tspan", {
 }); group.append(title);
 group.append(svgTextNode("text", { x: box.x + box.width - 14,
 y: box.y + box.height - 10, class: "atlas-node-meta",
-"text-anchor": "end", }, `${entityTypeLabel(node)} · ${node.status}`));
+"text-anchor": "end", }, `${node.type} · ${node.status}`));
 const inspect = () => setGraphFocus(node.id); group.addEventListener("click", inspect);
 group.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") {
 event.preventDefault(); inspect();
@@ -605,7 +535,7 @@ event.preventDefault(); inspect();
 svg.append(group); }
 async function openEntity(id) { if (!id || !state.entityById.has(id)) return;
 const summary = state.entityById.get(id); state.inspectorRequest += 1;
-const requestId = state.inspectorRequest; dom.inspectorKicker.textContent = `${entityTypeLabel(summary)} · ${summary.privacy}`;
+const requestId = state.inspectorRequest; dom.inspectorKicker.textContent = `${summary.type} · ${summary.privacy}`;
 dom.inspectorTitle.textContent = summary.title; dom.inspectorRevision.textContent = shortRevision(state.snapshot?.revision);
 replaceChildren(dom.inspectorBody, renderSkeleton()); if (!dom.inspector.open) dom.inspector.showModal();
 announce(`Opened ${summary.title}`); try {
@@ -616,9 +546,8 @@ if (requestId !== state.inspectorRequest) return; renderInspector(detail);
 } catch (error) { if (requestId !== state.inspectorRequest) return;
 replaceChildren(dom.inspectorBody, renderError("Record unavailable", readableError(error))); }
 } function renderInspector(entity) {
-dom.inspectorKicker.textContent = `${entityTypeLabel(entity)} · ${entity.privacy}`; dom.inspectorTitle.textContent = entity.title;
+dom.inspectorKicker.textContent = `${entity.type} · ${entity.privacy}`; dom.inspectorTitle.textContent = entity.title;
 const fragment = document.createDocumentFragment(); const meta = make("div", "entity-meta-strip");
-appendRecordBadges(meta, entity);
 for (const value of [entity.status, entity.role, formatDate(entity.updated), entity.path]) { if (value) meta.append(make("span", "meta-chip", value));
 } fragment.append(meta);
 const sections = asArray(entity.sections); if (sections.length) {
@@ -631,18 +560,14 @@ block.append(make("p", "entity-raw", entity.body || entity.summary || "No conten
 } const references = relationReferences(state.relations, entity.id);
 if (references.outgoing.length || references.incoming.length) fragment.append(renderInspectorRelations(entity, references));
 if (asArray(entity.sources).length) { const sourceSection = make("section", "entity-section");
-sourceSection.append(make("h3", "", "Sources")); const sources = make("ul", "source-list");
-for (const source of entity.sources) {
-const item = make("li"); const url = sourceWebUrl(source);
-if (url) { const link = make("a", "source-link", source); link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer"; item.append(link); }
-else item.textContent = source; sources.append(item);
-} sourceSection.append(sources);
+sourceSection.append(make("h3", "", "Source locators")); const sources = make("ul", "source-list");
+for (const source of entity.sources) sources.append(make("li", "", source)); sourceSection.append(sources);
 fragment.append(sourceSection); }
 replaceChildren(dom.inspectorBody, fragment); }
 
 function renderInspectorRelations(entity, references) {
 const section = make("section", "entity-section relation-inspector"); const heading = make("div", "relation-inspector-heading");
-heading.append(make("h3", "", "Relationship index")); if (state.graphNodeById.has(entity.id)) { const focus = make("button", "relation-focus", "See connections");
+heading.append(make("h3", "", "Relationship index")); if (state.graphNodeById.has(entity.id)) { const focus = make("button", "relation-focus", "Focus in aperture");
 focus.type = "button"; focus.addEventListener("click", () => { dom.inspector.close(); openInAperture(entity.id); }); heading.append(focus); }
 section.append(heading, make("p", "relation-boundary", "Direction reflects where a frontmatter link is declared. Reason, evidence, and review state are not structured."));
 if (references.outgoing.length) section.append(renderReferenceGroup("Outgoing declarations", references.outgoing, "This record links to"));
@@ -666,10 +591,9 @@ replaceChildren(dom.searchResults); if (!matches.length) {
 dom.searchResults.append(make("p", "search-empty", "No visible canonical record matches this search.")); } else {
 for (const entity of matches) { const result = make("button", "search-result");
 result.type = "button"; result.append(
-make("span", "search-result-type", entityTypeLabel(entity)), make("span", "", ""),
+make("span", "search-result-type", entity.type), make("span", "", ""),
 make("span", "status-label", entity.status), );
 const copy = result.children[1]; copy.append(make("strong", "", entity.title), make("small", "", entity.summary || entity.id));
-const badges = make("span", "record-badges"); appendRecordBadges(badges, entity); copy.append(badges);
 result.addEventListener("click", () => { dom.search.value = "";
 state.query = ""; closeSearch();
 openEntity(entity.id); });
@@ -700,28 +624,19 @@ function prioritizedWorkstreams() { return rankWorkstreams(state.snapshot?.works
 function reviewKind(item) { if (item.kind === "draft") return "Draft · manual review";
 return `${humanize(item.kind || "review")} · review`; }
 function reviewPrompt(item) { if (item.kind === "draft") {
-return "Read and edit this draft before sharing. Nothing has been sent."; }
+return "Check its claims and disclosure boundary against linked evidence. This draft is not finalized, signed, sent, or otherwise recorded as used."; }
 return item.reason || item.summary || "Inspect the linked context and make the decision manually."; }
 function linkedIds(workstream) { const ids = [...asArray(workstream.linkedPeople), ...asArray(workstream.linkedEntities)];
 return [...new Set(ids)].filter((id) => state.entityById.has(id)); }
 function attentionText(workstream) { const attention = asArray(workstream.attention);
-if (attention.length) return `Review: ${attention.slice(0, 3).join(" · ")}`; return "No next step saved yet. Open this plan to pick up the details.";
+if (attention.length) return `Review: ${attention.slice(0, 3).join(" · ")}`; return "No explicit next action is recorded in the canonical project page.";
 } function matchesQuery(entity) {
 if (!state.query) return true; return searchableText(entity).includes(state.query.toLocaleLowerCase());
-} function searchableText(entity) { return recordSearchText(entity); }
-function entityTypeLabel(entity) {
-  return entity.type === "project" ? "Plan" : entity.type === "journal" ? "Note" :
-    entity.type === "domain" ? "Life area" : humanize(entity.resourceKind || entity.type);
-}
-function appendRecordBadges(parent, entity) {
-  if (entity.resourceKind) parent.append(make("span", "record-kind", humanize(entity.resourceKind)));
-  const provenance = recordProvenance(entity);
-  if (provenance) { const badge = make("span", "record-provenance", provenance);
-    badge.dataset.kind = entity.demoKind; parent.append(badge); }
-}
-function atlasNodeVisible(node) {
-  return ["domain", "idea", "project", "experience", "person", "profile", "resource"].includes(node.type);
-}
+} function searchableText(entity) {
+return [entity.id, entity.title, entity.summary, ...asArray(entity.aliases), ...asArray(entity.tags)] .filter(Boolean)
+.join(" ") .toLocaleLowerCase();
+} function atlasNodeVisible(node) {
+return ["domain", "idea", "project", "experience", "person", "profile"].includes(node.type); }
 function atlasPath(from, to) { if (Math.abs(from.x - to.x) < 40) {
 const x = from.x + from.width * 0.5; const fromY = from.y + from.height;
 const toY = to.y; const bendX = x - 58;
