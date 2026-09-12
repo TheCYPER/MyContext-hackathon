@@ -16,6 +16,7 @@
 /.claude/
 /.codex/
 /.gstack/
+/.worktrees/
 .DS_Store
 node_modules/
 coverage/
