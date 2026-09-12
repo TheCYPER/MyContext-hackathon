@@ -22,6 +22,33 @@ Open <http://127.0.0.1:4318>. The default context is `.local/demo`, resolved
 relative to the source checkout. This is a separate Git repository created by
 setup from fictional sample data.
 
+
+## Automatic growth and link review
+
+Newly committed records and changed relationships appear without reloading the
+page. Refresh preserves focus, filters, expanded records, path selection, and
+unfinished search text. The status line reports new records/connections and
+removals. New nodes receive a visible outline. Failures show a stale-revision
+notice and can be retried; they do not invent a replacement graph.
+
+Exact record-level `sources: ["context:<stable-id>"]` references now project as
+separate, untyped **recorded source references**, including captures with no
+explicit `links`. A missing target connects when it is later committed. Duplicate
+and self references are ignored; references to removed, restricted, or ambiguous
+records are excluded. `unavailableSourceReference` counts unresolved/excluded
+source references in projection diagnostics. These references preserve declaration
+direction and the stricter endpoint privacy; they never become typed evidence or
+confirmed assertions automatically.
+
+**Possible connections** suggests currently unlinked records with exact shared
+tags or at least two common neighbors. Each suggestion explains its basis. These
+suggestions are not graph edges, semantic claims, or confidence scores.
+**Prepare link for review** produces a copyable navigation-link proposal, also
+available when a selected destination has no path. Review it with your assistant,
+then approve and commit the canonical change. Preserve existing fields and links,
+including any not visible in this projection. The dashboard itself stays read-only
+and cannot silently apply or approve a link.
+
 ## Use your own context repository
 
 Pass the path to a context Git repository root that has at least one commit:
@@ -43,13 +70,17 @@ configured context root or write to either repository.
 
 - Markdown and Git are the durable source of truth. The projector reads
   tracked canonical files from **Git `HEAD`**; uncommitted edits do not appear.
-  After an approved context update is committed, refresh the page.
+  The page checks for new committed context every five seconds while visible.
+  **Refresh** checks immediately; **Live updates** can pause automatic checks.
+  Uncommitted working-tree edits remain outside the graph until committed.
 - Canonical records live under `profile/`, `domains/`, `projects/`, `ideas/`,
   `experience/`, `people/`, and `journal/` in the context repository. The graph
   includes visible journal records and review drafts as well as the main entity
   types.
 - `restricted` records and all `sources/session-exports/` are excluded.
   Both `public` and `private` canonical records can appear locally.
+  Live refresh removes records that become restricted or are deleted and clears
+  any previously open detail for those records.
 - Drafts appear for human review and stay drafts. The dashboard cannot approve,
   apply, sign, send, or schedule anything.
 - Work experience stays separate from project workstreams. Candidate ideas
@@ -69,7 +100,12 @@ The relationship view distinguishes two connection classes:
   can support navigation and undirected connection paths, but it has no structured
   reason, evidence, or review state.
 
-One- and two-hop neighborhoods can be filtered by predicate, review state,
+Start with one or two hops, then use **Grow connections +** to reveal another
+layer without hiding the records already shown. The connection list also offers
+**Expand connections +** for individual records. Every recorded edge between
+visible nodes is shown, including connections within the same hop. The default
+200-record display limit can be increased in batches of 100; the full selected
+path is always retained. Neighborhoods can be filtered by predicate, review state,
 evidence availability, and current validity. Open **Filters** to adjust these;
 its summary shows active filters and the number of visible connections. Search
 **Find a record** by title, ID, or type, then choose a result with the mouse or
@@ -83,8 +119,8 @@ parallel connections, on desktop and mobile.
 
 Expand **Find a path** to select a destination and either follow directed typed
 arrows or navigate both directions across visible connections. Each path step can
-be inspected and returned to without losing the path. The graph highlights the
-portion inside the current neighborhood; the details list contains the full path.
+be inspected and returned to without losing the path. The graph includes and highlights the
+complete selected path, including records beyond two hops.
 **Needs you** opens the review drawer while exploring the graph, preserving space
 for the canvas. Escape closes the drawer and returns focus to its button. Paths always omit rejected assertions and
 assertions outside their validity window, even when those edges are visible through

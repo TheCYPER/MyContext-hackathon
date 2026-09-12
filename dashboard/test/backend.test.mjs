@@ -388,3 +388,64 @@ test("context selection honors explicit roots, shared configuration, and the leg
   process.env.MYCONTEXT_ROOT = missingRoot;
   assert.equal((await createDashboardServer({ root: fixtureRoot })).root, expectedRoot);
 });
+
+test("the running API grows and prunes its graph as committed records and links change", async () => {
+  const snapshot = async () => {
+    const response = await fetch(`${baseUrl}/api/v1/snapshot`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    return (await response.json()).snapshot;
+  };
+  const baseline = await snapshot();
+  const recordPath = "projects/growing/overview.md";
+  await write(recordPath, knowledge({
+    id: "project.growing", type: "project", title: "Growing fixture", privacy: "private",
+    links: ["project.alpha", "person.mentor"], body: "# Notes\n\nFirst committed detail.",
+  }));
+  assert.equal((await snapshot()).revision, baseline.revision);
+  assert.ok(!(await snapshot()).graph.nodes.some((node) => node.id === "project.growing"));
+  await git("add", recordPath);
+  await git("commit", "-m", "Add fictional connected project");
+  const grown = await snapshot();
+  assert.notEqual(grown.revision, baseline.revision);
+  assert.equal(grown.graph.nodes.length, baseline.graph.nodes.length + 1);
+  assert.deepEqual(grown.graph.adjacency["project.growing"].neighborIds, ["person.mentor", "project.alpha"]);
+  assert.equal(grown.entities.find((entity) => entity.id === "project.alpha").title, "Alpha canonical");
+  const firstDetail = await fetch(`${baseUrl}/api/v1/entities/project.growing?revision=${grown.revision}`);
+  assert.match((await firstDetail.json()).entity.body, /First committed detail/);
+
+  await write(recordPath, knowledge({
+    id: "project.growing", type: "project", title: "Updated growing fixture", privacy: "private",
+    links: ["experience.studio"], body: "# Notes\n\nRevised committed detail.",
+  }));
+  await git("add", recordPath);
+  await git("commit", "-m", "Replace fictional project connections");
+  const changed = await snapshot();
+  assert.deepEqual(changed.graph.adjacency["project.growing"].neighborIds, ["experience.studio"]);
+  assert.ok(!changed.graph.adjacency["project.alpha"].neighborIds.includes("project.growing"));
+  const staleDetail = await fetch(`${baseUrl}/api/v1/entities/project.growing?revision=${grown.revision}`);
+  assert.equal(staleDetail.status, 409);
+  const latestDetail = await fetch(`${baseUrl}/api/v1/entities/project.growing?revision=${changed.revision}`);
+  assert.match((await latestDetail.json()).entity.body, /Revised committed detail/);
+  const graph = await fetch(`${baseUrl}/api/v1/graph`);
+  const graphPayload = await graph.json();
+  assert.equal(graphPayload.revision, changed.revision);
+  assert.deepEqual(graphPayload.graph, changed.graph);
+
+  await rm(path.join(fixtureRoot, recordPath));
+  await write("people/mentor/profile.md", knowledge({
+    id: "person.mentor", type: "person", title: "Restricted mentor", privacy: "restricted",
+    body: "# Notes\n\nnewly-restricted-detail-sentinel",
+  }));
+  await git("add", recordPath, "people/mentor/profile.md");
+  await git("commit", "-m", "Remove and restrict fictional records");
+  const pruned = await snapshot();
+  const hidden = ["project.growing", "person.mentor"];
+  assert.ok(pruned.graph.nodes.every((node) => !hidden.includes(node.id)));
+  assert.ok(pruned.graph.edges.every((edge) => !hidden.includes(edge.from) && !hidden.includes(edge.to)));
+  assert.ok(Object.values(pruned.graph.adjacency).every((entry) => entry.neighborIds.every((id) => !hidden.includes(id))));
+  assert.ok(!JSON.stringify(pruned).includes("newly-restricted-detail-sentinel"));
+  for (const id of hidden) {
+    assert.equal((await fetch(`${baseUrl}/api/v1/entities/${id}`)).status, 404);
+  }
+});

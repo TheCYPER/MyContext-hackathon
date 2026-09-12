@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { ATLAS_LANES, buildLegacyRelations, buildRelations, chooseFocusNode, filterRelations, focusNeighborhood, layoutAtlas,
-  layoutFocusGraph, rankWorkstreams, relationReferences, relationTrail,
+  layoutFocusGraph, expandGraphNeighborhood, suggestRelatedRecords, rankWorkstreams, relationReferences, relationTrail,
   academicContextCounts, isSyntheticDemo, relationIsCurrent, viewAvailable, shortestPath } from "../public/model.mjs";
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -158,7 +158,7 @@ test("focus neighborhood and layout are deterministic at one and two hops", () =
   assert.deepEqual(twoHop.nodes.map((node) => node.id), ["project.a", "person.b", "domain.c", "project.d"]);
   assert.equal(twoHop.distances.get("project.d"), 2);
   assert.equal(twoHop.nodes.some((node) => node.id === "profile.e"), false);
-  assert.equal(oneHop.relations.some((relation) => relation.id === "bc"), false);
+  assert.equal(oneHop.relations.some((relation) => relation.id === "bc"), true);
 
   const first = layoutFocusGraph(nodes, relations, "project.a", 2);
   const second = layoutFocusGraph(nodes.slice().reverse(), relations.slice().reverse(), "project.a", 2);
@@ -232,11 +232,11 @@ test("frontend keeps projection and mobile review boundaries explicit", async ()
   assert.match(app, /reason not structured/i);
   assert.match(app, /Incoming declarations/);
   assert.match(app, /shortestPath/);
-  assert.match(app, /aperture highlights at most two hops/);
+  assert.match(app, /layoutFocusGraph/);
   assert.match(app, /renderViewAndFocus/);
   assert.match(app, /data-relation-id/);
-  assert.match(app, /Connected records/);
-  assert.match(app, /two-hop.*explicit typed assertions and legacy links/);
+  assert.match(app, /Revealed records/);
+  assert.match(app, /recorded connections/);
   assert.match(app, /reverse \?/);
   assert.match(app, /buildRelations/);
   assert.match(app, /Follow typed arrows/);
@@ -409,4 +409,132 @@ test("path search keeps inspection-only assertions out and never follows legacy 
   assert.deepEqual(shortestPath(nodes, inspected, "d", "a", { ...pathOptions, mode: "undirected" }), {
     nodeIds: ["d", "b", "a"], relationIds: ["bd-legacy", "ab"],
   });
+});
+
+
+test("focus grows beyond two hops and retains every visible connection and full path", () => {
+  const nodes = ["a", "b", "c", "d", "e", "isolated"].map((id) => ({ id, type: "project", title: id }));
+  const relations = [
+    { id: "ab", from: "a", to: "b" }, { id: "ac", from: "a", to: "c" },
+    { id: "bc", from: "b", to: "c" }, { id: "cd", from: "c", to: "d" },
+    { id: "de", from: "d", to: "e" }, { id: "cb", from: "c", to: "b" },
+  ];
+  const grown = focusNeighborhood(nodes, relations, "a", 3);
+  assert.deepEqual(grown.nodes.map((node) => node.id), ["a", "b", "c", "d", "e"]);
+  assert.deepEqual(grown.relations.map((edge) => edge.id), ["ab", "ac", "bc", "cb", "cd", "de"]);
+  const retained = layoutFocusGraph(nodes, relations, "a", 1, { retainIds: ["d", "e"] });
+  assert.equal(retained.positions.has("e"), true);
+  assert.equal(retained.distances.get("e"), 3);
+  const disconnected = layoutFocusGraph(nodes, relations, "a", 1, { retainIds: ["isolated"] });
+  assert.equal(disconnected.distances.get("isolated"), null);
+  assert.equal(disconnected.positions.has("isolated"), true);
+  assert.equal(retained.relations.some((edge) => edge.id === "de"), true);
+  const limited = focusNeighborhood(nodes, relations, "a", 3, { maxNodes: 3 });
+  assert.equal(limited.nodes.length, 3);
+  assert.equal(limited.hiddenNodeCount, 2);
+  assert.deepEqual(limited.frontierIds, ["c"]);
+  const mandatory = focusNeighborhood(nodes, relations, "a", 3, { maxNodes: 2, retainIds: ["b", "c", "d", "e", "missing"] });
+  assert.equal(mandatory.nodes.length, 5, "full selected path survives the ordinary display limit");
+});
+
+test("frontier expansion is deterministic, additive, bounded, and never invents links", () => {
+  const nodes = ["a", "b", "c", "d", "e"].map((id) => ({ id, type: "project", title: id }));
+  const relations = [
+    { id: "ab", from: "a", to: "b" }, { id: "ac", from: "a", to: "c" },
+    { id: "bd", from: "b", to: "d" }, { id: "ce", from: "c", to: "e" },
+    { id: "hidden", from: "a", to: "hidden" },
+  ];
+  const first = expandGraphNeighborhood(nodes, relations, ["a"]);
+  assert.deepEqual(first.nodeIds, ["a", "b", "c"]);
+  assert.deepEqual(first.frontierIds, ["b", "c"]);
+  assert.deepEqual(expandGraphNeighborhood(nodes.slice().reverse(), relations.slice().reverse(), ["a"]), first);
+  const branch = expandGraphNeighborhood(nodes, relations, first.nodeIds, { fromIds: ["b"] });
+  assert.deepEqual(branch.nodeIds, ["a", "b", "c", "d"]);
+  assert.deepEqual(branch.frontierIds, ["c"]);
+  const limited = expandGraphNeighborhood(nodes, relations, ["a"], { maxNodes: 2 });
+  assert.deepEqual(limited.nodeIds, ["a", "b"]);
+  assert.equal(limited.hiddenNodeCount, 1);
+  assert.deepEqual(limited.frontierIds, ["a", "b"]);
+  const full = expandGraphNeighborhood(nodes, relations, branch.nodeIds);
+  assert.deepEqual(full.nodeIds, ["a", "b", "c", "d", "e"]);
+  assert.deepEqual(expandGraphNeighborhood(nodes, relations, full.nodeIds).addedIds, []);
+  assert.deepEqual(expandGraphNeighborhood(nodes, relations, ["missing"]).nodeIds, []);
+});
+
+test("context source references retain their own provenance and declared direction", () => {
+  const nodes = [{ id: "a", links: ["b"] }, { id: "b", links: [] }];
+  const edge = { id: "source.ab", from: "a", to: "b", provenance: "frontmatter.sources",
+    kind: "related_to", sources: ["context:b"], sourcePath: "journal/a.md", declaredBy: "a" };
+  const relations = buildRelations(nodes, [edge]);
+  assert.equal(relations.length, 2, "source references do not erase independent legacy links");
+  const source = relations.find((relation) => relation.id === "source.ab");
+  assert.equal(source.provenance, "frontmatter.sources");
+  assert.equal(source.semanticStatus, "untyped");
+  assert.equal(source.review, "not_represented");
+  assert.equal(source.sourcePath, "journal/a.md");
+  assert.deepEqual(source.sources, ["context:b"]);
+  assert.deepEqual(source.declarations, [{ from: "a", to: "b" }]);
+  assert.equal(shortestPath(nodes, [source], "a", "b", { mode: "directed" }), null);
+  assert.deepEqual(shortestPath(nodes, [source], "a", "b").relationIds, ["source.ab"]);
+});
+
+test("suggestions expose exact shared context without becoming recorded relationships", () => {
+  const nodes = [
+    { id: "a", tags: ["learning"] }, { id: "b", tags: ["learning"] },
+    { id: "c", tags: ["learning", "learning"] }, { id: "d", tags: ["Learning"] },
+    { id: "e" }, { id: "n1" }, { id: "n2" },
+  ];
+  const relations = [
+    { from: "a", to: "b" }, { from: "a", to: "n1" }, { from: "a", to: "n2" },
+    { from: "e", to: "n1" }, { from: "e", to: "n2" }, { from: "d", to: "n1" },
+  ];
+  const before = JSON.stringify(relations);
+  const suggestions = suggestRelatedRecords(nodes, relations, "a");
+  assert.deepEqual(suggestions.map((item) => item.node.id), ["c", "e"]);
+  assert.deepEqual(suggestions[0].sharedTags, ["learning"]);
+  assert.deepEqual(suggestions[1].sharedNeighborIds, ["n1", "n2"]);
+  assert.equal(JSON.stringify(relations), before);
+  assert.deepEqual(suggestRelatedRecords(nodes.slice().reverse(), relations.slice().reverse(), "a"), suggestions);
+  assert.equal(suggestRelatedRecords(nodes, relations, "a", { limit: 1 }).length, 1);
+  assert.deepEqual(suggestRelatedRecords(nodes, relations, "missing"), []);
+});
+
+test("multiple dense expansion rings keep every card within the canvas and apart", () => {
+  const nodes = [{ id: "root", type: "project", title: "Root" }];
+  const relations = [];
+  for (let ring = 1; ring <= 4; ring += 1) {
+    for (let index = 0; index < 18; index += 1) {
+      const id = `${ring}-${index}`;
+      nodes.push({ id, type: "project", title: id });
+      relations.push({ id: `edge-${id}`, from: ring === 1 ? "root" : `${ring - 1}-${index}`, to: id });
+    }
+  }
+  const layout = layoutFocusGraph(nodes, relations, "root", 4);
+  assert.equal(layout.positions.size, 73);
+  const boxes = [...layout.positions];
+  for (let i = 0; i < boxes.length; i += 1) {
+    const [id, box] = boxes[i];
+    assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= layout.width && box.y + box.height <= layout.height, id);
+    for (let j = i + 1; j < boxes.length; j += 1) {
+      const [otherId, other] = boxes[j];
+      assert.equal(box.x < other.x + other.width && box.x + box.width > other.x &&
+        box.y < other.y + other.height && box.y + box.height > other.y, false, `${id} overlaps ${otherId}`);
+    }
+  }
+});
+
+test("twenty-neighbor focus uses the wide viewport without oversized circular clearance", () => {
+  const nodes = Array.from({ length: 21 }, (_, index) => ({ id: String(index), type: "project" }));
+  const edges = nodes.slice(1).map((node) => ({ id: `edge-${node.id}`, from: "0", to: node.id }));
+  const layout = layoutFocusGraph(nodes, edges, "0", 1);
+  assert.ok(layout.width < 1600 && layout.height < 900, "wide scene should remain readable at fit zoom");
+  const boxes = [...layout.positions.values()];
+  for (let i = 0; i < boxes.length; i += 1) {
+    for (let j = i + 1; j < boxes.length; j += 1) {
+      const left = boxes[i], right = boxes[j];
+      assert.equal(left.x < right.x + right.width + 12 && left.x + left.width + 12 > right.x &&
+        left.y < right.y + right.height + 12 && left.y + left.height + 12 > right.y, false,
+      "readability improvement must retain a gutter around every card");
+    }
+  }
 });

@@ -1,6 +1,6 @@
 import { TYPED_RELATION_KINDS, buildRelations, chooseFocusNode, filterRelations,
 layoutAtlas, layoutFocusGraph, relationReferences, relationTrail, rankWorkstreams,
-academicContextCounts, isSyntheticDemo, viewAvailable, shortestPath } from "./model.mjs";
+academicContextCounts, isSyntheticDemo, viewAvailable, shortestPath, expandGraphNeighborhood, suggestRelatedRecords } from "./model.mjs";
 
 const API = Object.freeze({ snapshot: "/api/v1/snapshot",
 repo: "/api/v1/repo", entity: (id, revision) => `/api/v1/entities/${encodeURIComponent(id)}${revision ? `?revision=${encodeURIComponent(revision)}` : ""}`,
@@ -31,31 +31,76 @@ entityById: new Map(), detailCache: new Map(),
 graphNodes: [], graphNodeById: new Map(), relations: [], graphRelations: [],
 focusId: null, focusDepth: 1, selectedRelationId: null, pathTargetId: null, pathResult: null,
 relationKind: "all", reviewState: "default", evidenceState: "all", includeOutOfValidity: false, pathMode: "undirected",
-graphZoom: 1, graphPanX: 0, graphPanY: 0, graphFiltersOpen: false,
+graphZoom: 1, graphPanX: 0, graphPanY: 0, graphFiltersOpen: false, graphPathOpen: false, graphDrafts: {},
+autoRefresh: true, refreshing: false, syncMessage: "Connecting…", newGraphIds: new Set(), graphRetainedIds: [], graphLimit: 200, validityDay: null,
 activeView: "desk", query: "",
 scope: "all", inspectorRequest: 0,
 loadError: null, repoError: null, };
 const dom = {}; document.addEventListener("DOMContentLoaded", initialize);
-async function initialize() { cacheDom();
-bindEvents(); selectInitialView();
-const [snapshotResult, repoResult] = await Promise.allSettled([ getJson(API.snapshot),
-getJson(API.repo), ]);
-if (snapshotResult.status === "fulfilled") { state.snapshot = snapshotResult.value.snapshot;
-state.entities = Array.isArray(state.snapshot.entities) ? state.snapshot.entities : []; state.entityById = new Map(state.entities.map((entity) => [entity.id, entity]));
-const graph = state.snapshot.graph || {}; state.graphNodes = asArray(graph.nodes).filter(atlasNodeVisible);
-state.graphNodeById = new Map(state.graphNodes.map((node) => [node.id, node]));
-state.relations = buildRelations(state.entities, graph.edges);
-state.graphRelations = state.relations.filter((relation) => state.graphNodeById.has(relation.from) && state.graphNodeById.has(relation.to));
-state.focusId = chooseFocusNode(state.graphNodes, state.graphRelations, state.focusId);
-} else { state.loadError = readableError(snapshotResult.reason);
-} if (repoResult.status === "fulfilled") {
-state.repo = repoResult.value.repo; } else {
-state.repoError = readableError(repoResult.reason); }
-updateCapabilityNavigation(); selectInitialView();
-dom.demoLabel.hidden = !isSyntheticDemo(state.entities);
-updateRepositoryStatus(); renderMargin();
-renderView(); finishLoading();
-} function cacheDom() {
+async function initialize() { cacheDom(); bindEvents(); selectInitialView();
+await refreshContext();
+window.setInterval(() => { if (state.autoRefresh && !document.hidden) refreshContext(); }, 5000);
+document.addEventListener("visibilitychange", () => { if (state.autoRefresh && !document.hidden) refreshContext(); });
+window.addEventListener("focus", () => { if (state.autoRefresh && !document.hidden) refreshContext(); });
+}
+
+async function refreshContext(manual = false) {
+if (state.refreshing) return; state.refreshing = true; updateSyncStatus();
+try {
+const [snapshotResult, repoResult] = await Promise.allSettled([getJson(API.snapshot), getJson(API.repo)]);
+if (snapshotResult.status !== "fulfilled") throw snapshotResult.reason;
+const snapshot = snapshotResult.value.snapshot;
+if (!snapshot?.revision || !Array.isArray(snapshot.entities) || !Array.isArray(snapshot.graph?.nodes)) throw new Error("The local API returned an incomplete graph.");
+const today = new Date().toISOString().slice(0, 10); const changed = snapshot.revision !== state.snapshot?.revision || state.validityDay !== today; const initial = !state.snapshot;
+state.repoError = repoResult.status === "fulfilled" ? null : readableError(repoResult.reason);
+state.repo = repoResult.status === "fulfilled" && repoResult.value.repo.revision === snapshot.revision ? repoResult.value.repo : null;
+if (changed) {
+const oldNodes = state.graphNodes; const oldIds = new Set(oldNodes.map((node) => node.id)); const oldEdges = new Set(state.graphRelations.map((edge) => edge.id));
+const active = document.activeElement; const activeId = active?.id; let fieldValue = active instanceof HTMLInputElement ? active.value : null;
+const selection = fieldValue !== null ? [active.selectionStart, active.selectionEnd] : null;
+const disclosures = [...document.querySelectorAll(".global-overview, .aperture-mobile-trail")].map((el) => [el.className.split(" ")[0], el.open]);
+const inspectorId = dom.inspector.open ? dom.inspector.dataset.entityId : null;
+state.validityDay = today; state.snapshot = snapshot; state.entities = snapshot.entities; state.entityById = new Map(state.entities.map((entity) => [entity.id, entity]));
+state.graphNodes = asArray(snapshot.graph.nodes).filter(atlasNodeVisible); state.graphNodeById = new Map(state.graphNodes.map((node) => [node.id, node]));
+state.relations = buildRelations(state.entities, snapshot.graph.edges);
+state.graphRelations = state.relations.filter((edge) => state.graphNodeById.has(edge.from) && state.graphNodeById.has(edge.to));
+state.newGraphIds = initial ? new Set() : new Set(state.graphNodes.filter((node) => !oldIds.has(node.id)).map((node) => node.id));
+const removedNodes = oldNodes.filter((node) => !state.graphNodeById.has(node.id)); const removed = removedNodes.length;
+if (removedNodes.some((node) => fieldValue === node.id || fieldValue === node.title)) fieldValue = "";
+for (const [key, value] of Object.entries(state.graphDrafts)) if (removedNodes.some((node) => value === node.id || value === node.title)) state.graphDrafts[key] = "";
+const addedEdges = state.graphRelations.filter((edge) => !oldEdges.has(edge.id)).length;
+state.detailCache.clear(); state.inspectorRequest += 1;
+state.graphRetainedIds = state.graphRetainedIds.filter((id) => state.graphNodeById.has(id));
+const oldFocus = state.focusId; state.focusId = chooseFocusNode(state.graphNodes, state.graphRelations, oldFocus);
+if (oldFocus && oldFocus !== state.focusId) { state.graphRetainedIds = []; state.focusDepth = 1; resetGraphViewport(); }
+if (!visibleGraphRelations().some((edge) => edge.id === state.selectedRelationId)) state.selectedRelationId = null;
+if (state.pathTargetId && state.graphNodeById.has(state.pathTargetId) && state.pathTargetId !== state.focusId) {
+state.pathResult = shortestPath(state.graphNodes, visibleGraphRelations(), state.focusId, state.pathTargetId, { mode: state.pathMode });
+} else { state.pathTargetId = null; state.pathResult = null; }
+state.loadError = null; updateCapabilityNavigation(); dom.demoLabel.hidden = !isSyntheticDemo(state.entities);
+renderMargin(); renderView(); renderSearchResults();
+for (const [className, open] of disclosures) { const element = document.querySelector(`.${className}`); if (element) element.open = open; }
+if (activeId) { const replacement = document.getElementById(activeId); if (replacement) { if (fieldValue !== null) { replacement.value = fieldValue; if (selection?.[0] !== null) replacement.setSelectionRange?.(...selection); } replacement.focus({ preventScroll: true }); } }
+if (inspectorId) {
+if (state.entityById.has(inspectorId)) openEntity(inspectorId);
+else { delete dom.inspector.dataset.entityId; dom.inspectorTitle.textContent = "Record no longer available"; dom.inspectorKicker.textContent = "Context updated"; dom.inspectorRevision.textContent = shortRevision(snapshot.revision);
+replaceChildren(dom.inspectorBody, make("p", "", "This record was removed or is no longer visible. Its previous contents have been cleared.")); }
+}
+state.syncMessage = initial ? "Watching saved context" : `Updated · ${state.newGraphIds.size} new records · ${addedEdges} new connections${removed ? ` · ${removed} removed` : ""}`;
+if (!initial) announce(state.syncMessage);
+} else if (manual || state.loadError) { state.syncMessage = "Up to date"; announce("Context is up to date"); }
+state.loadError = null; finishLoading(); updateRepositoryStatus();
+} catch (error) { state.loadError = readableError(error); state.syncMessage = state.snapshot ? "Update failed · showing the last loaded revision" : "Unable to load context"; finishLoading(); if (!state.snapshot) renderView(); if (manual) announce(state.syncMessage); }
+finally { state.refreshing = false; updateSyncStatus(); }
+}
+
+function updateSyncStatus() {
+if (!dom.refreshButton) return; dom.refreshButton.disabled = state.refreshing; dom.refreshButton.textContent = state.refreshing ? "Checking…" : "Refresh";
+dom.syncStatus.textContent = `${state.syncMessage}${state.repo?.dirty ? " · Uncommitted edits appear after commit" : ""}`;
+dom.autoRefresh.checked = state.autoRefresh;
+}
+
+function cacheDom() {
 dom.navItems = [...document.querySelectorAll("[data-view]")]; dom.viewKicker = document.getElementById("view-kicker");
 dom.viewTitle = document.getElementById("view-title"); dom.viewDeck = document.getElementById("view-deck");
 dom.viewContent = document.getElementById("view-content"); dom.search = document.getElementById("global-search");
@@ -72,8 +117,10 @@ dom.inspector = document.getElementById("entity-inspector"); dom.inspectorKicker
 dom.inspectorTitle = document.getElementById("inspector-title"); dom.inspectorBody = document.getElementById("inspector-body");
 dom.inspectorClose = document.getElementById("inspector-close"); dom.inspectorRevision = document.getElementById("inspector-revision");
 dom.liveRegion = document.getElementById("live-region"); dom.skipLink = document.querySelector(".skip-link");
+dom.refreshButton = document.getElementById("refresh-context"); dom.syncStatus = document.getElementById("context-sync-status"); dom.autoRefresh = document.getElementById("auto-refresh");
 dom.marginMedia = window.matchMedia("(max-width: 960px)"); }
-function bindEvents() { for (const item of dom.navItems) {
+function bindEvents() { dom.refreshButton.addEventListener("click", () => refreshContext(true)); dom.autoRefresh.addEventListener("change", () => { state.autoRefresh = dom.autoRefresh.checked; if (state.autoRefresh) refreshContext(true); else { state.syncMessage = "Automatic updates paused"; updateSyncStatus(); } });
+for (const item of dom.navItems) {
 item.addEventListener("click", () => setView(item.dataset.view)); }
 dom.search.addEventListener("input", () => { state.query = dom.search.value.trim();
 renderSearchResults(); });
@@ -133,8 +180,8 @@ error.status = response.status; error.code = payload?.error?.code; throw error;
 } return payload;
 } finally { window.clearTimeout(timeout);
 } }
-function finishLoading() { if (state.loadError) {
-dom.loadBanner.classList.add("is-error"); replaceChildren(dom.loadBanner, make("span", "", `MyContext could not project canonical context: ${state.loadError}`));
+function finishLoading() { dom.loadBanner.hidden = false; dom.loadBanner.classList.remove("is-error"); if (state.loadError) {
+dom.loadBanner.classList.add("is-error"); replaceChildren(dom.loadBanner, make("span", "", `${state.snapshot ? "Update failed; displaying the last loaded revision" : "MyContext could not load context"}: ${state.loadError}. Use Refresh to retry.`));
 return; }
 if (state.repoError) { replaceChildren(dom.loadBanner, make("span", "", `Context loaded; live repository status is unavailable: ${state.repoError}`));
 return; }
@@ -146,7 +193,7 @@ return; }
 if (!state.repo) { dom.repoOrbit.classList.add("is-alert"); const revision = shortRevision(state.snapshot.revision);
 dom.repoShortStatus.textContent = `${revision} · repository status unavailable`; dom.revisionLabel.textContent = `Tracked Git HEAD · ${revision}`;
 return; }
-if (state.repo.dirty) dom.repoOrbit.classList.add("is-alert"); const revision = shortRevision(state.repo.revision || state.snapshot.revision);
+if (state.repo.dirty) dom.repoOrbit.classList.add("is-alert"); const revision = shortRevision(state.snapshot.revision);
 const branch = state.repo.branch || "detached HEAD"; const stateLabel = state.repo.dirty ? "working tree has local changes" : "working tree clean";
 dom.repoShortStatus.textContent = `${branch} · ${revision} · ${stateLabel}`; dom.revisionLabel.textContent = `Tracked Git HEAD · ${branch} · ${revision}`;
 } function renderView() {
@@ -359,7 +406,7 @@ if (!items.length) { trail.append(make("span", "relation-trail-empty", "No visib
 const list = make("div", "relation-trail-nodes"); for (const item of items.slice(0, 4)) {
 const related = state.entityById.get(item.otherId); if (!related) continue;
 const marker = item.direction === "mutual" ? "↔" : item.direction === "outgoing" ? "→" : "←";
-const predicate = item.relation.semanticStatus === "typed" ? humanize(item.relation.kind) : "Legacy link";
+const predicate = relationDisplayLabel(item.relation);
 const button = make("button", `relation-trail-node is-${safeToken(item.relation.kind)}`, `${marker} ${predicate} · ${related.title}`); button.type = "button";
 button.title = `${predicate} · ${humanize(item.relation.review)} · open canonical record`;
 button.addEventListener("click", () => openEntity(related.id)); list.append(button); }
@@ -382,9 +429,7 @@ row.append(status); list.append(row);
 
 function buildFocusGraph() {
 const relations = visibleGraphRelations();
-const focus = state.graphNodeById.get(state.focusId); const layout = layoutFocusGraph(
-state.graphNodes, relations, state.focusId, state.focusDepth,
-); const frame = make("div", "aperture-frame");
+const focus = state.graphNodeById.get(state.focusId); const layout = currentGraphLayout(); const frame = make("div", "aperture-frame");
 const toolbar = make("div", "aperture-toolbar"); const identity = make("div", "aperture-focus-identity");
 identity.append(make("span", "eyebrow", "Current focus"), make("strong", "", focus?.title || "No focus"),
 make("span", "relation-boundary", `${layout.nodes.length} records · ${layout.relations.length} connections in view`));
@@ -394,11 +439,13 @@ for (const depth of [1, 2]) {
 const button = make("button", `aperture-control${state.focusDepth === depth ? " is-active" : ""}`, depth === 1 ? "1 hop" : "2 hops");
 button.type = "button"; button.dataset.depth = String(depth); button.setAttribute("aria-pressed", String(state.focusDepth === depth));
 button.title = depth === 1 ? "Show directly connected records" : "Include neighbors of connected records";
-button.addEventListener("click", () => { state.focusDepth = depth; state.selectedRelationId = null; resetGraphViewport(); renderViewAndFocus(`[data-depth="${depth}"]`); }); depthGroup.append(button); }
+button.addEventListener("click", () => { state.focusDepth = depth; state.graphRetainedIds = []; state.pathTargetId = null; state.pathResult = null; state.selectedRelationId = null; resetGraphViewport(); renderViewAndFocus(`[data-depth="${depth}"]`); }); depthGroup.append(button); }
 const focusPicker = buildGraphPicker("focus-picker", "Find a record", "Search records…", state.graphNodes, setGraphFocus);
 const inspectFocus = make("button", "aperture-control is-quiet", "Open record ↗"); inspectFocus.type = "button";
 inspectFocus.addEventListener("click", () => openEntity(state.focusId));
-controls.append(focusPicker.element, depthGroup, inspectFocus); toolbar.append(identity, controls); frame.append(toolbar);
+const grow = make("button", "aperture-control graph-grow", "Grow connections +"); grow.type = "button"; grow.disabled = !layout.frontierIds.length;
+grow.title = "Reveal another layer without hiding the records already shown"; grow.addEventListener("click", () => growGraph());
+controls.append(focusPicker.element, depthGroup, grow, inspectFocus); toolbar.append(identity, controls); frame.append(toolbar);
 const pathbar = make("div", "aperture-pathbar");
 const targetPicker = buildGraphPicker("path-picker", "Find a connection", "Search a destination…", state.graphNodes.filter((node) => node.id !== state.focusId), traceConnection);
 if (state.pathTargetId) targetPicker.input.value = state.graphNodeById.get(state.pathTargetId)?.title || "";
@@ -409,9 +456,10 @@ pathMode.addEventListener("change", () => { state.pathMode = pathMode.value; if 
 const trace = make("button", "aperture-control", "Find path →"); trace.type = "button"; trace.addEventListener("click", targetPicker.apply);
 pathbar.append(targetPicker.element, modeField, trace);
 if (state.pathTargetId) { const clear = make("button", "aperture-control is-quiet", "Clear path"); clear.type = "button"; clear.addEventListener("click", clearConnection); pathbar.append(clear); }
-const pathTools = make("details", "graph-path-tools"); pathTools.open = !!state.pathTargetId;
+const pathTools = make("details", "graph-path-tools"); pathTools.open = state.graphPathOpen || !!state.pathTargetId; pathTools.addEventListener("toggle", () => { state.graphPathOpen = pathTools.open; });
 const pathToggle = make("summary", "graph-tools-toggle", "Find a path"); pathToggle.append(make("span", "", "Between this focus and another record"));
 pathTools.append(pathToggle, pathbar); frame.append(pathTools, buildRelationFilters());
+if (layout.hiddenNodeCount || (layout.nodes.length >= state.graphLimit && layout.frontierIds.length)) { const limit = make("div", "graph-growth-note"); limit.append(make("span", "", `Showing ${layout.nodes.length} records. More connected records are available. `)); const more = make("button", "aperture-control", "Show 100 more"); more.type = "button"; more.addEventListener("click", () => { state.graphLimit += 100; growGraph(); }); limit.append(more); frame.append(limit); }
 const zoomControls = make("div", "aperture-zoom"); zoomControls.setAttribute("role", "group"); zoomControls.setAttribute("aria-label", "Graph zoom");
 const zoomOut = make("button", "aperture-control", "−"); zoomOut.type = "button"; zoomOut.setAttribute("aria-label", "Zoom out");
 const fit = make("button", "aperture-control is-quiet", "Fit"); fit.type = "button"; fit.title = "Reset zoom and center the graph";
@@ -423,25 +471,36 @@ const workspace = make("div", "aperture-workspace"); const stage = make("div", "
 const svg = svgNode("svg", { class: "aperture-canvas", viewBox: `0 0 ${layout.width} ${layout.height}`,
 role: "group", tabindex: "0", preserveAspectRatio: "xMidYMin meet", "aria-labelledby": "aperture-svg-title aperture-svg-description" });
 svg.append(svgTextNode("title", { id: "aperture-svg-title" }, `Context aperture focused on ${focus?.title || "a record"}`),
-svgTextNode("desc", { id: "aperture-svg-description" }, `A deterministic ${state.focusDepth === 2 ? "two-hop" : "one-hop"} view of explicit typed assertions and legacy links. Arrowheads show typed direction. Select an edge to inspect its provenance and evidence.`));
+svgTextNode("desc", { id: "aperture-svg-description" }, `A growing view of recorded connections, including retained records and the full selected path. Arrowheads show typed direction. Select an edge to inspect its provenance and evidence.`));
 appendArrowMarker(svg); const viewport = svgNode("g", { class: "aperture-viewport" }); svg.append(viewport);
 const pathRelationIds = new Set(asArray(state.pathResult?.relationIds)); const pathNodeIds = new Set(asArray(state.pathResult?.nodeIds));
+const offsets = parallelOffsets(layout.relations);
 for (const [index, relation] of layout.relations.entries()) appendFocusEdge(viewport, relation, layout.positions, {
 selected: relation.id === state.selectedRelationId, path: pathRelationIds.has(relation.id),
-}, parallelOffset(layout.relations, relation, index));
+}, offsets.get(relation.id) || 0);
 for (const node of layout.nodes) appendFocusNode(viewport, node, layout.positions.get(node.id), {
-focus: node.id === state.focusId, path: pathNodeIds.has(node.id), distance: layout.distances.get(node.id),
+focus: node.id === state.focusId, path: pathNodeIds.has(node.id), distance: layout.distances.get(node.id), isNew: state.newGraphIds.has(node.id),
 });
 const updateViewport = () => { updateGraphViewport(svg, layout); zoomReadout.value = `${Math.round(state.graphZoom * 100)}%`;
-zoomOut.disabled = state.graphZoom <= 0.6; zoomIn.disabled = state.graphZoom >= 2.5; }; zoomOut.addEventListener("click", () => { state.graphZoom = Math.max(0.6, state.graphZoom - 0.2); updateViewport(); });
-zoomIn.addEventListener("click", () => { state.graphZoom = Math.min(2.5, state.graphZoom + 0.2); updateViewport(); }); fit.addEventListener("click", () => { resetGraphViewport(); updateViewport(); });
+zoomOut.disabled = state.graphZoom <= 0.6; zoomIn.disabled = state.graphZoom >= 8; }; zoomOut.addEventListener("click", () => { state.graphZoom = Math.max(0.6, state.graphZoom - 0.2); updateViewport(); });
+zoomIn.addEventListener("click", () => { state.graphZoom = Math.min(8, state.graphZoom + 0.2); updateViewport(); }); fit.addEventListener("click", () => { resetGraphViewport(); updateViewport(); });
 if (!layout.relations.length) stage.append(make("p", "graph-empty-message", relations.length ? "This record has no connections under these filters. Search another record or reset filters to explore." : "No connections match your filters. Reset filters to see current recorded connections."));
 const stageToolbar = make("div", "aperture-stage-toolbar"); const legend = make("div", "graph-legend"); legend.setAttribute("aria-label", "Graph legend");
-for (const [kind, label] of [["typed", "→ Typed connection"], ["generic", "− Legacy link"]]) legend.append(make("span", `graph-legend-item is-${kind}`, label));
+for (const [kind, label] of [["typed", "→ Typed connection"], ["generic", "− Link / source reference"]]) legend.append(make("span", `graph-legend-item is-${kind}`, label));
 stageToolbar.append(legend, zoomControls);
 const help = make("p", "graph-canvas-help", "Drag to pan · Ctrl/⌘ + scroll to zoom · Focus canvas: arrows to pan, +/− to zoom, 0 to fit");
 bindGraphPanZoom(svg, layout, updateViewport); updateViewport(); stage.append(stageToolbar, svg, help, renderMobileFocusTrail(state.focusId, layout)); workspace.append(stage, renderRelationPanel()); frame.append(workspace);
 return frame;
+}
+
+function currentGraphLayout() {
+const retained = [...new Set([...state.graphRetainedIds, ...asArray(state.pathResult?.nodeIds)])];
+return layoutFocusGraph(state.graphNodes, visibleGraphRelations(), state.focusId, state.focusDepth, { retainIds: retained, maxNodes: state.graphLimit });
+}
+function growGraph(fromId = null) {
+const layout = currentGraphLayout(); const growth = expandGraphNeighborhood(state.graphNodes, visibleGraphRelations(), layout.nodes.map((node) => node.id), { fromIds: fromId ? [fromId] : layout.frontierIds, maxNodes: state.graphLimit });
+state.graphRetainedIds = growth.nodeIds; resetGraphViewport(); renderViewAndFocus(".graph-grow");
+announce(growth.addedIds.length ? `Added ${growth.addedIds.length} connected records; ${growth.nodeIds.length} now visible` : "All available connections at this limit are visible");
 }
 
 function updateGraphViewport(svg, layout) { const width = layout.width / state.graphZoom; const height = layout.height / state.graphZoom;
@@ -452,10 +511,10 @@ function resetGraphViewport() { state.graphZoom = 1; state.graphPanX = 0; state.
 
 function bindGraphPanZoom(svg, layout, updateViewport) { let drag = null;
 svg.addEventListener("wheel", (event) => { if (!event.ctrlKey && !event.metaKey) return;
-event.preventDefault(); state.graphZoom = Math.max(0.6, Math.min(2.5, state.graphZoom + (event.deltaY < 0 ? 0.12 : -0.12))); updateViewport(); }, { passive: false });
+event.preventDefault(); state.graphZoom = Math.max(0.6, Math.min(8, state.graphZoom + (event.deltaY < 0 ? 0.12 : -0.12))); updateViewport(); }, { passive: false });
 svg.addEventListener("keydown", (event) => { if (event.target !== svg) return;
 const step = 50 / state.graphZoom;
-if (["+", "="].includes(event.key)) state.graphZoom = Math.min(2.5, state.graphZoom + 0.2);
+if (["+", "="].includes(event.key)) state.graphZoom = Math.min(8, state.graphZoom + 0.2);
 else if (event.key === "-") state.graphZoom = Math.max(0.6, state.graphZoom - 0.2);
 else if (event.key === "0" || event.key === "Home") resetGraphViewport();
 else if (event.key === "ArrowLeft") state.graphPanX += step;
@@ -463,7 +522,7 @@ else if (event.key === "ArrowRight") state.graphPanX -= step;
 else if (event.key === "ArrowUp") state.graphPanY += step;
 else if (event.key === "ArrowDown") state.graphPanY -= step;
 else return; event.preventDefault(); updateViewport(); });
-svg.addEventListener("pointerdown", (event) => { if (event.button !== 0 || event.target.closest?.(".aperture-node, .aperture-edge-handle")) return;
+svg.addEventListener("pointerdown", (event) => { if (event.button !== 0 || event.target.closest?.(".aperture-node, .aperture-edge-handle, .graph-edge-hit")) return;
 drag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: state.graphPanX, panY: state.graphPanY }; svg.setPointerCapture(event.pointerId); svg.classList.add("is-panning"); });
 svg.addEventListener("pointermove", (event) => { if (!drag || event.pointerId !== drag.id) return;
 const matrix = svg.getScreenCTM(); if (!matrix) return;
@@ -472,13 +531,13 @@ const end = () => { drag = null; svg.classList.remove("is-panning"); }; svg.addE
 
 function buildGraphPicker(id, label, placeholder, nodes, onSelect) {
 const element = make("div", "graph-picker"); const fieldLabel = make("label", "graph-field-label", label); fieldLabel.htmlFor = id;
-const input = make("input", "connection-target"); input.id = id; input.type = "search"; input.placeholder = placeholder; input.autocomplete = "off";
+const input = make("input", "connection-target"); input.id = id; input.type = "search"; input.placeholder = placeholder; input.autocomplete = "off"; input.value = state.graphDrafts[id] || "";
 input.setAttribute("role", "combobox"); input.setAttribute("aria-autocomplete", "list"); input.setAttribute("aria-expanded", "false"); input.setAttribute("aria-controls", `${id}-results`);
 const results = make("ul", "graph-picker-results"); results.id = `${id}-results`; results.setAttribute("role", "listbox"); results.setAttribute("aria-label", label); results.hidden = true;
 const message = make("span", "graph-picker-message"); message.id = `${id}-message`; message.setAttribute("role", "status"); message.hidden = true; input.setAttribute("aria-describedby", message.id);
 let matches = []; let active = -1;
 const close = () => { results.hidden = true; input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant"); active = -1; };
-const choose = (node) => { close(); message.hidden = true; input.removeAttribute("aria-invalid"); input.value = node.title; onSelect(node.id); };
+const choose = (node) => { close(); message.hidden = true; input.removeAttribute("aria-invalid"); input.value = node.title; state.graphDrafts[id] = node.title; onSelect(node.id); };
 const highlight = () => { [...results.children].forEach((option, index) => option.setAttribute("aria-selected", String(index === active)));
 if (active >= 0) { input.setAttribute("aria-activedescendant", `${id}-option-${active}`); results.children[active]?.scrollIntoView({ block: "nearest" }); } };
 const search = () => { const query = input.value.trim().toLocaleLowerCase(); active = -1; input.removeAttribute("aria-activedescendant"); input.removeAttribute("aria-invalid");
@@ -489,7 +548,7 @@ results.hidden = !matches.length; input.setAttribute("aria-expanded", String(mat
 const apply = () => { const exact = nodes.filter((node) => node.id === input.value.trim() || String(node.title).toLocaleLowerCase() === input.value.trim().toLocaleLowerCase());
 if (active >= 0 && matches[active]) choose(matches[active]); else if (exact.length === 1) choose(exact[0]); else if (matches.length === 1 && input.value.trim()) choose(matches[0]);
 else { input.focus(); message.textContent = "Choose a record from the search results."; message.hidden = false; input.setAttribute("aria-invalid", "true"); } };
-input.addEventListener("input", search); input.addEventListener("focus", search);
+input.addEventListener("input", () => { state.graphDrafts[id] = input.value; search(); }); input.addEventListener("focus", search);
 input.addEventListener("keydown", (event) => { if (["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); if (results.hidden) search();
 if (matches.length) { active = active < 0 ? (event.key === "ArrowDown" ? 0 : matches.length - 1) : (active + (event.key === "ArrowDown" ? 1 : -1) + matches.length) % matches.length; highlight(); } }
 else if (event.key === "Enter") { event.preventDefault(); apply(); } else if (event.key === "Escape") { event.stopPropagation(); close(); message.hidden = true; } });
@@ -506,7 +565,7 @@ summary.append(make("span", "", `${visibleGraphRelations().length} of ${state.gr
 const bar = make("div", "relation-filters"); const kinds = new Set(state.graphRelations.map((relation) => relation.kind));
 const kind = make("select", "relation-filter"); kind.setAttribute("aria-label", "Filter relation predicate");
 kind.append(makeOption("all", "All predicates")); for (const predicate of ["related_to", ...TYPED_RELATION_KINDS]) {
-if (kinds.has(predicate)) kind.append(makeOption(predicate, humanize(predicate))); }
+if (kinds.has(predicate) || state.relationKind === predicate) kind.append(makeOption(predicate, `${humanize(predicate)}${kinds.has(predicate) ? "" : " · 0 connections"}`)); }
 kind.value = state.relationKind; kind.addEventListener("change", () => { state.relationKind = kind.value; resetGraphInspection("#graph-kind-filter"); });
 const review = make("select", "relation-filter"); review.setAttribute("aria-label", "Filter relation review state");
 review.append(makeOption("default", "Current · not rejected"), makeOption("all", "All review states"),
@@ -547,37 +606,40 @@ markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }); marker.append(
 defs.append(marker); svg.append(defs);
 }
 
-function parallelOffset(relations, relation, index) {
-const pair = [relation.from, relation.to].sort().join("\0"); const peers = relations.filter((candidate) => [candidate.from, candidate.to].sort().join("\0") === pair);
-const peerIndex = peers.findIndex((candidate) => candidate.id === relation.id); return (peerIndex - (peers.length - 1) / 2) * 20;
+function parallelOffsets(relations) {
+const groups = new Map(); const offsets = new Map();
+for (const relation of relations) { const key = [relation.from, relation.to].sort().join("\0"); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(relation); }
+for (const peers of groups.values()) peers.forEach((relation, index) => offsets.set(relation.id, (index - (peers.length - 1) / 2) * 20));
+return offsets;
 }
 
 function appendFocusEdge(svg, relation, positions, flags, offset = 0) {
   const from = positions.get(relation.from); const to = positions.get(relation.to); if (!from || !to) return;
 const geometry = focusEdgeGeometry(from, to, offset); const left = state.graphNodeById.get(relation.from); const right = state.graphNodeById.get(relation.to);
 const typed = relation.semanticStatus === "typed"; const kindClass = `is-${safeToken(relation.kind)}`;
-const group = svgNode("g", { class: `aperture-edge-control${flags.selected ? " is-selected" : ""}${flags.path ? " is-path" : ""}`,
+const group = svgNode("g", { "data-from": relation.from, "data-to": relation.to, class: `aperture-edge-control${flags.selected ? " is-selected" : ""}${flags.path ? " is-path" : ""}`,
 });
 const edgeAttributes = { d: geometry.path, class: `aperture-edge ${typed ? "is-typed" : "is-generic"} ${kindClass}${flags.selected ? " is-selected" : ""}${flags.path ? " is-path" : ""}` };
 if (typed) edgeAttributes["marker-end"] = "url(#typed-arrow)"; group.append(svgNode("path", edgeAttributes));
 const inspect = () => inspectGraphRelation(relation.id);
+const hit = svgNode("path", { d: geometry.path, class: "graph-edge-hit", "aria-hidden": "true" }); hit.addEventListener("click", inspect); group.append(hit);
 const handle = svgNode("circle", { cx: geometry.midpoint.x, cy: geometry.midpoint.y, r: 22,
 class: `aperture-edge-handle${flags.selected ? " is-selected" : ""}${flags.path ? " is-path" : ""}`,
 "data-relation-id": relation.id, "aria-pressed": String(flags.selected), tabindex: "0", role: "button", "aria-label": `Inspect ${humanize(relation.kind)} from ${left?.title || relation.from} to ${right?.title || relation.to}; ${humanize(relation.review)}` });
-handle.append(svgTextNode("title", {}, typed ? `${humanize(relation.kind)} · directed · ${humanize(relation.review)}` : "Legacy link · reason not structured"));
+handle.append(svgTextNode("title", {}, typed ? `${humanize(relation.kind)} · directed · ${humanize(relation.review)}` : `${relationDisplayLabel(relation)} · reason not structured`));
 handle.addEventListener("click", inspect); handle.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") {
 event.preventDefault(); inspect(); } }); svg.append(group);
 const marker = svgNode("circle", { cx: geometry.midpoint.x, cy: geometry.midpoint.y, r: 8,
 class: `aperture-edge-marker ${typed ? "is-typed" : "is-generic"} ${kindClass}${flags.selected ? " is-selected" : ""}${flags.path ? " is-path" : ""}`, "aria-hidden": "true" });
-svg.append(handle, marker); if (typed) svg.append(svgTextNode("text", { x: geometry.midpoint.x, y: geometry.midpoint.y - 13,
+group.append(handle, marker); if (typed) group.append(svgTextNode("text", { x: geometry.midpoint.x, y: geometry.midpoint.y - 13,
 class: `aperture-edge-label ${kindClass}`, "text-anchor": "middle", "aria-hidden": "true" }, relation.label || humanize(relation.kind)));
 }
 
 function appendFocusNode(svg, node, box, flags) {
-if (!box) return; const className = `aperture-node is-${safeToken(node.type)}${flags.focus ? " is-focus" : ""}${flags.path ? " is-path" : ""}`;
+if (!box) return; const className = `aperture-node is-${safeToken(node.type)}${flags.focus ? " is-focus" : ""}${flags.path ? " is-path" : ""}${flags.isNew ? " is-new" : ""}`;
 const action = flags.focus ? "Inspect" : "Focus on"; const group = svgNode("g", { class: className, tabindex: "0", role: "button",
 "data-node-id": node.id,
-"aria-label": `${action} ${node.title}; ${flags.distance === 0 ? "current focus" : `${flags.distance} hop${flags.distance === 1 ? "" : "s"} away`}` });
+"aria-label": `${action} ${node.title}; ${flags.distance === 0 ? "current focus" : flags.distance === null ? "retained record" : `${flags.distance} hop${flags.distance === 1 ? "" : "s"} away`}` });
 group.append(svgTextNode("title", {}, `${node.title} · ${node.type} · ${node.status}`), svgNode("rect", {
 x: box.x, y: box.y, width: box.width, height: box.height, rx: flags.focus ? 18 : node.type === "person" ? box.height / 2 : 10,
 class: "aperture-node-surface",
@@ -586,6 +648,9 @@ const lines = wrapLabel(node.title, flags.focus ? 24 : 19); const title = svgNod
 lines.forEach((line, index) => title.append(svgTextNode("tspan", { x: box.x + 14, dy: index === 0 ? 0 : 15 }, line))); group.append(title);
 group.append(svgTextNode("text", { x: box.x + box.width - 13, y: box.y + box.height - 10,
 class: "aperture-node-meta", "text-anchor": "end" }, flags.focus ? `${node.type} · inspect` : `${node.type} · refocus`));
+const highlight = () => { const canvas = svg.closest("svg"); const neighbors = new Set([node.id]); for (const edge of canvas.querySelectorAll(".aperture-edge-control")) { const connected = edge.dataset.from === node.id || edge.dataset.to === node.id; edge.classList.toggle("is-muted", !connected); if (connected) { neighbors.add(edge.dataset.from); neighbors.add(edge.dataset.to); } } for (const card of canvas.querySelectorAll(".aperture-node")) card.classList.toggle("is-muted", !neighbors.has(card.dataset.nodeId)); };
+const clearHighlight = () => { for (const element of svg.closest("svg").querySelectorAll(".is-muted")) element.classList.remove("is-muted"); };
+group.addEventListener("pointerenter", highlight); group.addEventListener("pointerleave", clearHighlight); group.addEventListener("focus", highlight); group.addEventListener("blur", clearHighlight);
 const activate = () => flags.focus ? openEntity(node.id) : setGraphFocus(node.id);
 group.addEventListener("click", activate); group.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") {
 event.preventDefault(); activate(); } }); svg.append(group);
@@ -594,14 +659,15 @@ event.preventDefault(); activate(); } }); svg.append(group);
 function renderMobileFocusTrail(focusId, layout) {
 const region = make("details", "aperture-mobile-trail"); region.open = window.matchMedia("(max-width: 760px)").matches;
 const items = asArray(layout?.nodes).filter((node) => node.id !== focusId);
-region.append(make("summary", "", `${state.focusDepth === 2 ? "Records within two hops" : "Connected records"} · ${items.length}`));
+region.append(make("summary", "", `Revealed records · ${items.length}`));
 const trail = relationTrail(visibleGraphRelations(), focusId);
 if (!items.length) { region.append(make("p", "relation-trail-empty", "No connected records match this view. Try another record or reset the filters.")); return region; }
 const list = make("ul", "backlink-list"); for (const node of items) { const connections = trail.filter((item) => item.otherId === node.id); const distance = layout.distances.get(node.id);
 const row = make("li", "backlink-item"); const button = make("button", "relation-list-button"); button.type = "button";
-button.append(make("strong", "", node.title), make("span", "", `${humanize(node.type)} · ${distance > 1 ? `${distance} hops away` : `${connections.length} direct connection${connections.length === 1 ? "" : "s"}`} · Focus →`));
+button.append(make("strong", "", node.title), make("span", "", `${humanize(node.type)} · ${distance === null ? "Retained record" : distance > 1 ? `${distance} hops away` : `${connections.length} direct connection${connections.length === 1 ? "" : "s"}`} · Focus →`));
 button.addEventListener("click", () => setGraphFocus(node.id)); row.append(button);
-for (const item of connections) { const inspect = make("button", "graph-list-connection", `${item.direction === "mutual" ? "↔" : item.direction === "outgoing" ? "→" : "←"} ${humanize(item.relation.kind)} · ${humanize(item.relation.review)}`);
+if (layout.frontierIds.includes(node.id)) { const expand = make("button", "aperture-control", "Expand connections +"); expand.type = "button"; expand.setAttribute("aria-label", `Expand connections from ${node.title}`); expand.addEventListener("click", () => growGraph(node.id)); row.append(expand); }
+for (const item of connections) { const inspect = make("button", "graph-list-connection", `${item.direction === "mutual" ? "↔" : item.direction === "outgoing" ? "→" : "←"} ${relationDisplayLabel(item.relation)} · ${humanize(item.relation.review)}`);
 inspect.type = "button"; inspect.setAttribute("aria-label", `Inspect ${humanize(item.relation.kind)} connection with ${node.title}`); inspect.addEventListener("click", () => inspectGraphRelation(item.relation.id)); row.append(inspect); }
 list.append(row); } region.append(list); return region;
 }
@@ -622,23 +688,52 @@ make("p", "relation-panel-copy", "Select an edge to inspect its exact direction,
 const counts = make("dl", "relation-ledger"); counts.append(make("dt", "", "Outgoing declarations"), make("dd", "", String(references.outgoing.length)),
 make("dt", "", "Incoming declarations"), make("dd", "", String(references.incoming.length)), make("dt", "", "Showing"), make("dd", "", `${new Set([...references.outgoing, ...references.incoming].map((item) => item.relation.id)).size} connections at focus`),
 make("dt", "", "Path mode"), make("dd", "", state.pathMode === "directed" ? "Typed arrows only" : "Either direction")); panel.append(counts);
-const actions = make("div", "graph-panel-actions"); const open = make("button", "aperture-control", "Read this record ↗"); open.type = "button"; open.addEventListener("click", () => openEntity(state.focusId)); actions.append(open); panel.append(actions, relationBoundaryNote()); return panel;
+const actions = make("div", "graph-panel-actions"); const open = make("button", "aperture-control", "Read this record ↗"); open.type = "button"; open.addEventListener("click", () => openEntity(state.focusId)); actions.append(open); panel.append(actions, relationBoundaryNote(), renderGraphSuggestions()); return panel;
 }
+
+function renderGraphSuggestions() {
+const section = make("section", "graph-suggestions"); section.append(make("h4", "", "Possible connections"), make("p", "", "Suggestions from shared tags or neighbors. These are not recorded links or verified claims."));
+const candidates = suggestRelatedRecords(state.graphNodes, state.graphRelations, state.focusId);
+if (!candidates.length) { section.append(make("p", "", "No unlinked records share enough context yet. New records and links can reveal more suggestions.")); return section; }
+for (const candidate of candidates) { const item = make("div", "graph-suggestion"); item.append(make("strong", "", candidate.node.title));
+const reasons = []; if (candidate.sharedTags.length) reasons.push(`Shared tags: ${candidate.sharedTags.join(", ")}`);
+if (candidate.sharedNeighborIds.length) reasons.push(`Shared neighbors: ${candidate.sharedNeighborIds.map((id) => state.graphNodeById.get(id)?.title || id).join(", ")}`);
+item.append(make("p", "", reasons.join(". ")));
+const inspect = make("button", "aperture-control is-quiet", "Read record"); inspect.type = "button"; inspect.addEventListener("click", () => openEntity(candidate.node.id));
+item.append(inspect, buildLinkProposal(candidate.node.id, reasons)); section.append(item); }
+return section;
+}
+
+function buildLinkProposal(targetId, reasons = ["Manually selected for review"]) {
+const container = make("div", "graph-link-review");
+const propose = make("button", "aperture-control", "Prepare link for review"); propose.type = "button";
+propose.addEventListener("click", () => { const existing = container.querySelector(".graph-proposal"); if (existing) { existing.remove(); propose.setAttribute("aria-expanded", "false"); return; }
+const source = state.entityById.get(state.focusId); const proposal = make("div", "graph-proposal");
+const links = [...new Set([...asArray(source?.links), targetId])];
+const text = `Review a proposed navigation link (not a semantic assertion).\nSource: ${source?.path || state.focusId}\nRevision: ${state.snapshot.revision}\nTarget: ${targetId}\nReason to review: ${reasons.join(". ")}\n\nProposed links field, preserving current visible links:\nlinks:\n${links.map((id) => `  - ${JSON.stringify(id)}`).join("\n")}\n\nBefore applying, review the current canonical file and preserve all existing fields and links, including any not visible here. Only apply and commit after owner approval. This dashboard has not saved a link.`;
+const textarea = make("textarea", "graph-link-proposal"); textarea.readOnly = true; textarea.value = text; textarea.setAttribute("aria-label", "Proposed link for review");
+const copy = make("button", "aperture-control", "Copy proposal"); copy.type = "button"; copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(text); copy.textContent = "Copied"; } catch { textarea.focus(); textarea.select(); copy.textContent = "Select and copy the proposal"; } });
+proposal.append(make("p", "", "Review with your assistant, then approve and commit the change to create the link. Live updates will show the saved result."), textarea, copy); container.append(proposal); propose.setAttribute("aria-expanded", "true"); });
+propose.setAttribute("aria-expanded", "false"); container.append(propose); return container;
+}
+
+
+function relationDisplayLabel(relation) { return relation.semanticStatus === "typed" ? humanize(relation.kind) : relation.provenance === "frontmatter.sources" ? "Recorded source reference" : "Legacy link"; }
 
 function renderWhyConnected(relation) {
 const fragment = document.createDocumentFragment(); const declarations = asArray(relation.declarations);
 const first = declarations[0] || { from: relation.from, to: relation.to }; const reverse = declarations.some((declaration) => declaration.from === first.to && declaration.to === first.from);
-const source = state.graphNodeById.get(first.from) || state.entityById.get(first.from); const target = state.graphNodeById.get(first.to) || state.entityById.get(first.to); const typed = relation.semanticStatus === "typed";
+const source = state.graphNodeById.get(first.from) || state.entityById.get(first.from); const target = state.graphNodeById.get(first.to) || state.entityById.get(first.to); const typed = relation.semanticStatus === "typed"; const sourceReference = relation.provenance === "frontmatter.sources";
 const heading = !typed && reverse ? `${source?.title || first.from} ↔ ${target?.title || first.to}` : `${source?.title || first.from} → ${target?.title || first.to}`;
 fragment.append(make("span", "eyebrow", "Why connected?"), make("h3", "", heading),
-make("p", "relation-panel-copy", typed ? "This is an explicit directed assertion from canonical frontmatter. The dashboard does not add or infer relationships." : "This is a compatibility link. Its declaration is recorded, but its meaning and evidence are not structured."));
+make("p", "relation-panel-copy", typed ? "This is an explicit directed assertion from canonical frontmatter. The dashboard does not add or infer relationships." : sourceReference ? "This record explicitly cites the target through a context source locator. It is a recorded reference, not a verified semantic claim." : "This is a compatibility link. Its declaration is recorded, but its meaning and evidence are not structured."));
 const ledger = make("dl", "relation-ledger"); ledger.append(make("dt", "", "Predicate"), make("dd", `relation-value is-${safeToken(relation.kind)}`, relation.label || humanize(relation.kind)),
-make("dt", "", "Semantic status"), make("dd", "", typed ? "Typed assertion" : "Untyped legacy link"), make("dt", "", "Review"), make("dd", `review-state is-${safeToken(relation.review)}`, humanize(relation.review)),
+make("dt", "", "Semantic status"), make("dd", "", typed ? "Typed assertion" : sourceReference ? "Recorded source reference" : "Untyped legacy link"), make("dt", "", "Review"), make("dd", `review-state is-${safeToken(relation.review)}`, humanize(relation.review)),
 make("dt", "", "Privacy"), make("dd", "", relation.privacy || "unknown"));
 if (typed) ledger.append(make("dt", "", "Declared by"), make("dd", "", relation.declaredBy || relation.from),
 make("dt", "", "Source path"), make("dd", "source-path", relation.sourcePath || "Not projected"), make("dt", "", "Valid"), make("dd", "", validityLabel(relation)));
 fragment.append(ledger);
-if (typed) fragment.append(renderEvidenceBlock(relation));
+if (typed || sourceReference) fragment.append(renderEvidenceBlock(relation));
 const declarationList = make("div", "relation-declarations"); declarationList.append(make("h4", "", "Recorded declarations"));
 for (const declaration of declarations) { const from = state.graphNodeById.get(declaration.from) || state.entityById.get(declaration.from); const to = state.graphNodeById.get(declaration.to) || state.entityById.get(declaration.to);
 declarationList.append(make("p", "", `${from?.title || declaration.from} → ${to?.title || declaration.to}`)); }
@@ -670,33 +765,33 @@ return `${relation.validFrom ? formatDate(relation.validFrom) : "Open"} → ${re
 function renderConnectionResult() {
 const fragment = document.createDocumentFragment(); const target = state.graphNodeById.get(state.pathTargetId);
 fragment.append(make("span", "eyebrow", "Connection trail"), make("h3", "", target ? `${state.graphNodeById.get(state.focusId)?.title} → ${target.title}` : "Target unavailable"));
-if (!state.pathResult) { fragment.append(make("p", "relation-panel-copy", state.pathMode === "directed" ? "No current, non-rejected path follows typed arrows to this target." : "No current, non-rejected path connects these records under the selected filters."), relationBoundaryNote()); return fragment; }
+if (!state.pathResult) { fragment.append(make("p", "relation-panel-copy", state.pathMode === "directed" ? "No current, non-rejected path follows typed arrows to this target." : "No current, non-rejected path connects these records under the selected filters."), relationBoundaryNote()); if (target) fragment.append(buildLinkProposal(target.id)); return fragment; }
 const list = make("ol", "connection-path"); for (const [index, id] of state.pathResult.nodeIds.entries()) { const node = state.graphNodeById.get(id);
 const item = make("li", ""); const button = make("button", "connection-path-node", node?.title || id); button.type = "button";
 button.addEventListener("click", () => setGraphFocus(id)); item.append(button);
 const relationId = state.pathResult.relationIds[index]; const relation = state.graphRelations.find((candidate) => candidate.id === relationId);
-if (relation) { const edge = make("button", "graph-list-connection", `${humanize(relation.kind)} · ${humanize(relation.review)}`); edge.type = "button";
+if (relation) { const edge = make("button", "graph-list-connection", `${relationDisplayLabel(relation)} · ${humanize(relation.review)}`); edge.type = "button";
 edge.setAttribute("aria-label", `Inspect ${humanize(relation.kind)} connection in this path`); edge.addEventListener("click", () => inspectGraphRelation(relation.id)); item.append(edge); }
 list.append(item); }
 fragment.append(list, make("p", "relation-panel-copy", `${state.pathResult.relationIds.length} assertion${state.pathResult.relationIds.length === 1 ? "" : "s"} in the deterministic ${state.pathMode === "directed" ? "typed directed" : "navigation"} path.`));
-if (state.pathResult.relationIds.length > 2) fragment.append(make("p", "relation-path-limit", "The full trail is listed here; the aperture highlights at most two hops from the current focus."));
+fragment.append(make("p", "relation-path-limit", "The full path is included in the graph, with each connection available for inspection."));
 fragment.append(relationBoundaryNote()); return fragment;
 }
 
 function relationBoundaryNote() { return make("p", "relation-boundary-note", "Only recorded assertions are shown. No endorsement, causality, fit, or evidence quality is inferred."); }
 function traceConnection(targetId) { if (!targetId || !state.graphNodeById.has(targetId) || targetId === state.focusId) return; resetGraphViewport();
-state.pathTargetId = targetId; state.pathResult = shortestPath(state.graphNodes, visibleGraphRelations(), state.focusId, targetId, {
+state.graphPathOpen = true; state.pathTargetId = targetId; state.pathResult = shortestPath(state.graphNodes, visibleGraphRelations(), state.focusId, targetId, {
 mode: state.pathMode, includeRejected: false, includeOutOfValidity: false,
 });
 state.selectedRelationId = null; if (state.pathResult?.relationIds.length > 1) state.focusDepth = 2; renderViewAndFocus(".relation-panel");
 announce(state.pathResult ? `Found a ${state.pathResult.relationIds.length}-link connection` : "No connection found"); }
-function clearConnection() { state.pathTargetId = null; state.pathResult = null; renderViewAndFocus("#path-picker"); }
+function clearConnection() { state.graphDrafts["path-picker"] = ""; state.pathTargetId = null; state.pathResult = null; renderViewAndFocus("#path-picker"); }
 function setGraphFocus(id) { if (!state.graphNodeById.has(id)) return;
-state.focusId = id; state.focusDepth = 1; state.selectedRelationId = null; state.pathTargetId = null; state.pathResult = null;
+state.graphDrafts = {}; state.focusId = id; state.focusDepth = 1; state.graphRetainedIds = []; state.graphLimit = 200; state.selectedRelationId = null; state.pathTargetId = null; state.pathResult = null;
 resetGraphViewport();
 renderViewAndFocus(`[data-node-id="${CSS.escape(id)}"]`); announce(`Focused relationship view on ${state.graphNodeById.get(id).title}`); }
 function openInAperture(id) { if (!state.graphNodeById.has(id)) return;
-state.focusId = id; state.focusDepth = 1; state.selectedRelationId = null; state.pathTargetId = null; state.pathResult = null; resetGraphViewport();
+state.graphDrafts = {}; state.focusId = id; state.focusDepth = 1; state.graphRetainedIds = []; state.graphLimit = 200; state.selectedRelationId = null; state.pathTargetId = null; state.pathResult = null; resetGraphViewport();
 if (state.activeView === "atlas") renderViewAndFocus(`[data-node-id="${CSS.escape(id)}"]`); else {
 setView("atlas"); window.requestAnimationFrame(() => focusElement(`[data-node-id="${CSS.escape(id)}"]`)); } }
 
@@ -721,16 +816,16 @@ legendKey("legend-shape is-domain", "Domain"), legendKey("legend-shape is-idea",
 legendKey("legend-shape is-experience", "Experience"),
 legendKey("legend-shape is-person", "Person"), legendKey("legend-shape is-profile", "Profile"),
 legendKey("legend-shape is-journal", "Journal"), legendKey("legend-shape is-draft", "Draft"),
-legendKey("legend-line is-typed", "Typed · arrow shows direction"), legendKey("legend-line is-generic", "Legacy · untyped"), );
+legendKey("legend-line is-typed", "Typed · arrow shows direction"), legendKey("legend-line is-generic", "Links / source references · untyped"), );
 toolbar.append(legend, make("span", "section-note", "Select any node to bring it into focus")); frame.append(toolbar);
 const layout = layoutAtlas(nodes); const scroll = make("div", "atlas-scroll"); const svg = svgNode("svg", {
 class: "atlas-canvas", viewBox: `0 0 ${layout.width} ${layout.height}`,
 role: "group", "aria-labelledby": "atlas-svg-title atlas-svg-description",
 }); svg.append(
-svgTextNode("title", { id: "atlas-svg-title" }, "MyContext global relationship overview"), svgTextNode("desc", { id: "atlas-svg-description" }, "Visible canonical records are arranged by type. Solid arrowed lines are typed assertions; dashed lines are untyped legacy links."),
+svgTextNode("title", { id: "atlas-svg-title" }, "MyContext global relationship overview"), svgTextNode("desc", { id: "atlas-svg-description" }, "Visible canonical records are arranged by type. Solid arrowed lines are typed assertions; dashed lines are recorded links or source references."),
 ); svg.style.minWidth = `${layout.width}px`; appendArrowMarker(svg, "atlas-typed-arrow"); appendAtlasLanes(svg, layout.lanes);
-const visibleById = new Map(layout.nodes.map((node) => [node.id, node])); for (const [index, edge] of edges.entries()) {
-if (!visibleById.has(edge.from) || !visibleById.has(edge.to)) continue; appendAtlasEdge(svg, edge, layout.positions.get(edge.from), layout.positions.get(edge.to), parallelOffset(edges, edge, index));
+const visibleById = new Map(layout.nodes.map((node) => [node.id, node])); const offsets = parallelOffsets(edges); for (const [index, edge] of edges.entries()) {
+if (!visibleById.has(edge.from) || !visibleById.has(edge.to)) continue; appendAtlasEdge(svg, edge, layout.positions.get(edge.from), layout.positions.get(edge.to), offsets.get(edge.id) || 0);
 } for (const node of layout.nodes) appendAtlasNode(svg, node, layout.positions.get(node.id));
 scroll.append(svg); frame.append(scroll);
 return frame; }
@@ -763,7 +858,7 @@ event.preventDefault(); inspect();
 } });
 svg.append(group); }
 async function openEntity(id) { if (!id || !state.entityById.has(id)) return;
-const summary = state.entityById.get(id); state.inspectorRequest += 1;
+const summary = state.entityById.get(id); dom.inspector.dataset.entityId = id; state.inspectorRequest += 1;
 const requestId = state.inspectorRequest; dom.inspectorKicker.textContent = `${summary.type} · ${summary.privacy}`;
 dom.inspectorTitle.textContent = summary.title; dom.inspectorRevision.textContent = shortRevision(state.snapshot?.revision);
 replaceChildren(dom.inspectorBody, renderSkeleton()); if (!dom.inspector.open) dom.inspector.showModal();
@@ -771,11 +866,12 @@ announce(`Opened ${summary.title}`); try {
 const revision = state.snapshot?.revision; let detail = state.detailCache.get(id); if (!detail) {
 const payload = await getJson(API.entity(id, revision));
 if (payload.revision && revision && payload.revision !== revision) { const changed = new Error("Context changed; refresh the page before opening this record."); changed.code = "revision_changed"; throw changed; }
-detail = payload.entity; state.detailCache.set(id, detail); }
+detail = payload.entity; if (requestId !== state.inspectorRequest || revision !== state.snapshot?.revision) return; state.detailCache.set(id, detail); }
 if (requestId !== state.inspectorRequest) return; renderInspector(detail);
 } catch (error) { if (requestId !== state.inspectorRequest) return;
 const changed = error?.code === "revision_changed" || error?.status === 409;
-replaceChildren(dom.inspectorBody, renderError(changed ? "Context changed; refresh" : "Record unavailable", readableError(error))); }
+replaceChildren(dom.inspectorBody, renderError(changed ? "Context changed" : "Record unavailable", readableError(error)));
+if (changed) { const retry = make("button", "aperture-control", "Refresh context and retry"); retry.type = "button"; retry.addEventListener("click", () => refreshContext(true)); dom.inspectorBody.append(retry); } }
 } function renderInspector(entity) {
 dom.inspectorKicker.textContent = `${entity.type} · ${entity.privacy}`; dom.inspectorTitle.textContent = entity.title;
 const fragment = document.createDocumentFragment(); const meta = make("div", "entity-meta-strip");
@@ -812,7 +908,7 @@ for (const reference of references) { const related = state.entityById.get(refer
 const item = make("li", "backlink-item"); const button = make("button", "relation-list-button"); button.type = "button";
 const typed = reference.relation.semanticStatus === "typed"; const detail = typed
 ? `${directionLabel} · ${humanize(reference.relation.kind)} · ${humanize(reference.relation.review)}${reference.relation.sourcePath ? ` · ${reference.relation.sourcePath}` : ""}`
-: `${directionLabel} · legacy link · reason not structured`;
+: `${directionLabel} · ${relationDisplayLabel(reference.relation)} · reason not structured`;
 button.append(make("strong", "", related.title), make("span", "", detail)); button.addEventListener("click", () => openEntity(related.id));
 item.append(button); list.append(item); } group.append(list); return group;
 }

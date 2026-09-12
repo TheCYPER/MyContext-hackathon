@@ -190,3 +190,65 @@ Dir.mktmpdir("mycontext-relations-test-") do |root|
 end
 
 puts "knowledge-relations: OK"
+
+Dir.mktmpdir("mycontext-source-graph-test-") do |root|
+  run_git = lambda do |*args|
+    _out, error, result = Open3.capture3("git", "-C", root, *args)
+    assert(result.success?, "source fixture Git failed: #{error}")
+  end
+  project = "projects/alpha/overview.md"
+  journal = "journal/2026/2026-08-20-source-capture.md"
+  files = {
+    project => document(id: "project.alpha", type: "project", title: "Alpha", privacy: "private"),
+    journal => document(id: "journal.source-capture", type: "journal", title: "Recorded source",
+      date: "2026-08-20")
+  }
+  source_lines = %w[context:project.alpha context:project.alpha context:project.missing
+    context:journal.source-capture session:codex:project.alpha].map { |source| "  - #{source.to_json}" }.join("\n")
+  files[journal] = files[journal].sub('  - "user:2026-08-20"', source_lines)
+  files.each do |relative, content|
+    FileUtils.mkdir_p(File.dirname(File.join(root, relative)))
+    File.write(File.join(root, relative), content)
+  end
+  run_git.call("init", "-b", "main")
+  run_git.call("config", "user.email", "test@example.invalid")
+  run_git.call("config", "user.name", "Test")
+  run_git.call("add", ".")
+  run_git.call("commit", "-m", "source references")
+  project_snapshot = lambda do
+    out, error, result = Open3.capture3(RbConfig.ruby, File.expand_path("../dashboard/projector.rb", __dir__), root)
+    assert(result.success?, "source projection failed: #{error}")
+    JSON.parse(out)
+  end
+  snapshot = project_snapshot.call
+  edges = snapshot["graph"]["edges"]
+  assert(edges.length == 1, "exact context references should resolve once without matching free text or self references")
+  edge = edges.first
+  assert(edge["from"] == "journal.source-capture" && edge["to"] == "project.alpha", "source reference direction changed")
+  assert(edge["provenance"] == "frontmatter.sources" && edge["semanticStatus"] == "untyped", "source reference was upgraded to a semantic assertion")
+  assert(edge["privacy"] == "private", "source edge did not inherit endpoint privacy")
+  assert(snapshot["counts"]["excluded"]["unavailableSourceReference"] == 1, "missing source references should be counted")
+  assert(snapshot["graph"]["adjacency"]["project.alpha"]["neighborIds"] == ["journal.source-capture"], "source references missing from adjacency")
+  File.write(File.join(root, project), files[project].sub("privacy: private", "privacy: restricted"))
+  assert(project_snapshot.call["graph"]["edges"] == edges, "uncommitted source changes affected committed graph")
+  run_git.call("add", project)
+  run_git.call("commit", "-m", "restrict source target")
+  snapshot = project_snapshot.call
+  assert(snapshot["graph"]["edges"].empty?, "restricted reference target leaked an edge")
+  source_entity = snapshot["entities"].find { |entity| entity["id"] == "journal.source-capture" }
+  assert(!source_entity["sources"].include?("context:project.alpha"), "restricted target leaked through projected source metadata")
+  missing = "projects/missing/overview.md"
+  FileUtils.mkdir_p(File.dirname(File.join(root, missing)))
+  File.write(File.join(root, missing), document(id: "project.missing", type: "project", title: "Newly recorded target"))
+  assert(project_snapshot.call["graph"]["edges"].empty?, "uncommitted new records entered graph")
+  run_git.call("add", missing)
+  run_git.call("commit", "-m", "add previously referenced target")
+  snapshot = project_snapshot.call
+  assert(snapshot["graph"]["edges"].map { |item| item["to"] } == ["project.missing"],
+    "new committed target did not resolve an existing reference automatically")
+  run_git.call("rm", missing)
+  run_git.call("commit", "-m", "remove target")
+  assert(project_snapshot.call["graph"]["edges"].empty?, "removed target retained dangling source edge")
+end
+
+puts "source-reference graph: OK"
