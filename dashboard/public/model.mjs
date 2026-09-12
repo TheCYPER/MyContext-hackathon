@@ -214,7 +214,9 @@ export function relationTrail(relations, entityId) {
 export function focusNeighborhood(nodes, relations, focusId, depth = 1, options = {}) {
   const visibleNodes = array(nodes).filter((node) => node?.id);
   const nodeById = new Map(visibleNodes.map((node) => [node.id, node]));
-  if (!nodeById.has(focusId)) return { nodes: [], relations: [], distances: new Map() };
+  if (!nodeById.has(focusId)) return {
+    nodes: [], relations: [], distances: new Map(), hiddenNodeCount: 0, frontierIds: [],
+  };
 
   const adjacency = new Map(visibleNodes.map((node) => [node.id, []]));
   const validRelations = array(relations).filter((relation) =>
@@ -409,13 +411,20 @@ export function suggestRelatedRecords(nodes, relations, focusId, options = {}) {
   const nodeById = new Map(array(nodes).filter((node) => node?.id).map((node) => [node.id, node]));
   const focus = nodeById.get(focusId);
   if (!focus) return [];
-  const neighbors = new Map([...nodeById.keys()].map((id) => [id, new Set()]));
+  // Existing assertions, including rejected ones, are not new link proposals.
+  const alreadyLinked = new Set();
   for (const edge of array(relations)) {
+    if (edge?.from === focusId) alreadyLinked.add(edge.to);
+    if (edge?.to === focusId) alreadyLinked.add(edge.from);
+  }
+  const neighbors = new Map([...nodeById.keys()].map((id) => [id, new Set()]));
+  // Rejected and expired assertions must not support suggested connections.
+  for (const edge of filterRelations(relations, { at: options.at })) {
     if (!neighbors.has(edge?.from) || !neighbors.has(edge?.to) || edge.from === edge.to) continue;
     neighbors.get(edge.from).add(edge.to); neighbors.get(edge.to).add(edge.from);
   }
   const tags = new Set(array(focus.tags).filter((tag) => typeof tag === "string" && tag.trim()));
-  return [...nodeById.values()].filter((node) => node.id !== focusId && !neighbors.get(focusId).has(node.id))
+  return [...nodeById.values()].filter((node) => node.id !== focusId && !alreadyLinked.has(node.id))
     .map((node) => ({ node,
       sharedTags: [...new Set(array(node.tags).filter((tag) => tags.has(tag)))].sort(),
       sharedNeighborIds: [...neighbors.get(node.id)].filter((id) => neighbors.get(focusId).has(id)).sort(),
