@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A local, read-only dashboard for MyContext Markdown and Git repositories.",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "scripts": {
     "start": "node server.mjs",

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
@@ -370,6 +371,10 @@ test("default production root serves the built Vite application", async () => {
     const response = await rawRequest("/", { port: productionPort });
     assert.equal(response.status, 200);
     assert.match(response.body, /<div id="root"><\/div>/);
+    const themeBootstrap = response.body.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+    assert.ok(themeBootstrap, "built index contains a blocking theme bootstrap");
+    const themeHash = createHash("sha256").update(themeBootstrap).digest("base64");
+    assert.ok(response.headers["content-security-policy"].includes(`'sha256-${themeHash}'`));
 
     const assetPath = response.body.match(/src="(\/assets\/[^\"]+\.js)"/)?.[1];
     assert.ok(assetPath, "built index references a JavaScript asset");
@@ -379,6 +384,15 @@ test("default production root serves the built Vite application", async () => {
   } finally {
     await new Promise((resolve) => app.server.close(resolve));
   }
+});
+
+test("server refuses a static root without an index", async () => {
+  const incompletePublicDir = path.join(fixtureRoot, "incomplete-public");
+  await mkdir(incompletePublicDir, { recursive: true });
+  await assert.rejects(
+    createDashboardServer({ root: fixtureRoot, publicDir: incompletePublicDir, projectorPath: PROJECTOR }),
+    /index\.html/,
+  );
 });
 
 test("context selection honors explicit roots, shared configuration, and the legacy alias", async (t) => {

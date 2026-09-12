@@ -4,6 +4,7 @@ export const ATLAS_LANES: ReadonlyArray<{ type: string; label: string; x: number
 export const LEGACY_RELATION_BOUNDARY: Readonly<Record<string, string>>;
 
 export interface LegacyRelation extends GraphEdge {
+  projectedProvenance?: string | null;
   declarations: Array<{ from: string; to: string; sourcePath?: string }>;
 }
 

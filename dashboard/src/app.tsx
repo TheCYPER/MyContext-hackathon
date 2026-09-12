@@ -1,7 +1,7 @@
 import { AlertCircle, Database } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { entityMatches } from "./components/layout/global-search";
+import { matchesQuery } from "./components/layout/global-search";
 import { AppShell } from "./components/layout/app-shell";
 import { Brand } from "./components/layout/sidebar";
 import { LoadingState } from "./components/loading-state";
@@ -31,12 +31,19 @@ export function App() {
   const [scope, setScope] = useState<SearchScope>("all");
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [graphFocusId, setGraphFocusId] = useState<string | null>(null);
+  const previousView = useRef(view);
 
   useEffect(() => {
     document.title = `${VIEW_META[view].title} · MyContext`;
+    if (previousView.current !== view) {
+      previousView.current = view;
+      const main = document.getElementById("main-content");
+      main?.focus();
+      main?.scrollIntoView?.({ block: "start", behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    }
   }, [view]);
 
-  const visibleEntities = useMemo(() => data.snapshot?.entities.filter((entity) => entityMatches(entity, query, scope)) || [], [data.snapshot, query, scope]);
+  const visibleEntities = useMemo(() => data.snapshot?.entities.filter((entity) => matchesQuery(entity, query)) || [], [data.snapshot, query]);
 
   if (data.loading && !data.snapshot) return <><ThemeSync /><LoadingShell /></>;
 
@@ -81,6 +88,8 @@ export function App() {
         entityId={selectedEntityId}
         summary={data.snapshot.entities.find((entity) => entity.id === selectedEntityId)}
         revision={data.snapshot.revision}
+        entities={data.snapshot.entities}
+        onFocusGraph={(id) => { setSelectedEntityId(null); openGraph(id); }}
         onOpenChange={(open) => { if (!open) setSelectedEntityId(null); }}
       />
       <span className="sr-only">{graphFocusId ? `Graph focus ${graphFocusId}` : "No graph focus"}</span>

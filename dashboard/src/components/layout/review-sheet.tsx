@@ -18,7 +18,7 @@ export function ReviewSheet({ items, onOpenEntity }: { items: ReviewItem[]; onOp
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button type="button" variant="secondary" className="shrink-0"><ClipboardCheck /> <span className="hidden lg:inline">Needs your review</span><Badge variant="outline">{items.length}</Badge></Button>
+        <Button type="button" variant="secondary" className="shrink-0" aria-label={`Needs your review, ${items.length} ${items.length === 1 ? "item" : "items"}`}><ClipboardCheck /> <span className="hidden lg:inline">Needs your review</span><Badge variant="outline">{items.length}</Badge></Button>
       </SheetTrigger>
       <SheetContent aria-describedby="review-description">
         <SheetHeader>

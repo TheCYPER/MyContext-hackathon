@@ -20,6 +20,11 @@ describe("canonical entity inspector", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Motion Atlas" });
     expect(dialog).toHaveTextContent("Fixture body.");
+    expect(dialog).toHaveTextContent("active");
+    expect(dialog).toHaveTextContent("primary");
+    expect(dialog).toHaveTextContent("demo:fictional");
+    expect(dialog).toHaveTextContent("Rhea Sen");
+    expect(screen.getByRole("button", { name: "Focus in graph" })).toBeInTheDocument();
     expect(dialog).toHaveTextContent("Read from tracked Git HEAD");
     expect(dialog.querySelector("script")).toBeNull();
   });

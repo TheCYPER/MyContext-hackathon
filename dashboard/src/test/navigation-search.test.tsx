@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -31,5 +31,23 @@ describe("navigation and search", () => {
     await user.type(screen.getByRole("searchbox", { name: "Search context" }), "Eval");
     expect(screen.getAllByRole("button", { name: /Eval Notebook/i })).not.toHaveLength(0);
     expect(screen.queryByRole("button", { name: /Motion Atlas/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps scope limited to search, dismisses results after selection, and focuses changed views", async () => {
+    mockApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Projects" }));
+    expect(document.getElementById("main-content")).toHaveFocus();
+
+    await user.click(screen.getByRole("combobox", { name: "Filter search scope" }));
+    await user.click(await screen.findByRole("option", { name: "People" }));
+    expect(screen.getByRole("button", { name: /Motion Atlas/i })).toBeInTheDocument();
+
+    await user.type(screen.getByRole("searchbox", { name: "Search context" }), "Rhea");
+    await user.click(within(screen.getByRole("region", { name: "Search results" })).getByRole("button", { name: /Rhea Sen/i }));
+    expect(await screen.findByRole("dialog", { name: "Rhea Sen" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Search results" })).not.toBeInTheDocument();
   });
 });

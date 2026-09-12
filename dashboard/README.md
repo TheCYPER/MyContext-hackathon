@@ -8,7 +8,7 @@ the owner study, research and build.
 
 ## Run the demo
 
-Requirements: Node.js 20+, Ruby 2.6+ with Psych, Git 2.28+ and a POSIX shell.
+Requirements: Node.js 22.12+, Ruby 2.6+ with Psych, Git 2.28+ and a POSIX shell.
 Install the dashboard's React, shadcn/Radix, Tailwind, and Zustand packages from
 the source root.
 

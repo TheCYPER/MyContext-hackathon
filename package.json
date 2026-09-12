@@ -4,7 +4,7 @@
   "private": true,
   "description": "Inspectable personal context for your AI, stored in Markdown and Git.",
   "license": "MIT",
-  "engines": { "node": ">=20" },
+  "engines": { "node": ">=22.12" },
   "workspaces": ["dashboard"],
   "scripts": {
     "setup": "bash scripts/setup.sh demo",

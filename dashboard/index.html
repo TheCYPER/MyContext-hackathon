@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="description" content="MyContext keeps academic and professional context ready for your next conversation." />
     <title>MyContext · Academic &amp; professional context</title>
-    <script type="module" src="/src/theme-bootstrap.ts"></script>
+    <script>(function(){try{var s=JSON.parse(localStorage.getItem("mycontext-theme")||"{}"),t=s&&s.state&&s.state.theme||"system",d=t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);document.documentElement.style.colorScheme=d?"dark":"light"}catch(e){}})();</script>
   </head>
   <body>
     <div id="root"></div>

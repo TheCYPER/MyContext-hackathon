@@ -15,7 +15,7 @@ const DEFAULT_ROOT = path.join(path.dirname(DASHBOARD_DIR), ".local", "demo");
 const BIND_HOST = "127.0.0.1";
 const ENTITY_ID = /^[a-z0-9][a-z0-9._-]*$/;
 const SECURITY_HEADERS = Object.freeze({
-  "Content-Security-Policy": ["default-src 'self'", "script-src 'self'", "style-src 'self'",
+  "Content-Security-Policy": ["default-src 'self'", "script-src 'self' 'sha256-Zasv/aOoBR8TwFNOiZyuteFHa/R7m/fwgKrVOPQcWMI='", "style-src 'self'",
     "img-src 'self' data:", "connect-src 'self'", "object-src 'none'", "base-uri 'none'",
     "frame-ancestors 'none'", "form-action 'self'"].join("; "),
   "Cross-Origin-Opener-Policy": "same-origin",
@@ -195,6 +195,9 @@ export async function createDashboardServer(options = {}) {
       throw new Error("Dashboard build is missing. Run: npm run build");
     }
     throw error;
+  }
+  if (!await resolveStaticFile(publicDir, "/")) {
+    throw new Error("Dashboard static root is missing a readable index.html");
   }
   const projectorPath = await realpath(options.projectorPath || DEFAULT_PROJECTOR);
   const loadProjection = await createProjectionLoader({ root, projectorPath,

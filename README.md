@@ -25,7 +25,7 @@ retains the initial release. The commands below select this demo branch explicit
 
 ## Try it locally
 
-Requirements: Git 2.28+, Node.js 20+, Ruby 2.6+, and a POSIX shell. Use macOS,
+Requirements: Git 2.28+, Node.js 22.12+, Ruby 2.6+, and a POSIX shell. Use macOS,
 Linux, or WSL. The dashboard uses local npm packages; it needs no Ruby gems,
 model downloads, API keys, or database services. You bring your own AI assistant.
 
@@ -90,7 +90,7 @@ my own future notes. Follow the steps through verification, and report exactly
 what succeeded. Do not call a partial setup complete.
 
 1. Inspect the current working directory and available Git, Node.js, Ruby, and
-   shell versions. MyContext requires Git 2.28+, Node.js 20+, Ruby 2.6+, and a
+   shell versions. MyContext requires Git 2.28+, Node.js 22.12+, Ruby 2.6+, and a
    POSIX shell. On Windows use WSL. Do not print credentials or inspect auth
    files. If a prerequisite is missing, explain the platform-appropriate install
    step; obtain any required system permission before changing system packages.
