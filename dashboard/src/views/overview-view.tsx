@@ -1,4 +1,5 @@
 import { Briefcase } from "@phosphor-icons/react/Briefcase";
+import { ArrowUpRight } from "@phosphor-icons/react/ArrowUpRight";
 import { Flask } from "@phosphor-icons/react/Flask";
 import { FolderSimple } from "@phosphor-icons/react/FolderSimple";
 import { Notebook } from "@phosphor-icons/react/Notebook";
@@ -29,9 +30,7 @@ export function OverviewView({
       value: counts.projects,
       icon: FolderSimple,
       view: "projects" as const,
-      tone: "bg-palette-green",
-      valueTone: "text-palette-black",
-      metaTone: "bg-palette-black text-palette-cream",
+      tone: "bg-palette-green text-palette-black",
       focusTone: "focus-visible:ring-palette-black",
     },
     {
@@ -39,9 +38,7 @@ export function OverviewView({
       value: counts.experience,
       icon: Briefcase,
       view: "experience" as const,
-      tone: "bg-palette-terracotta",
-      valueTone: "text-palette-black",
-      metaTone: "bg-palette-black text-palette-cream",
+      tone: "bg-palette-terracotta text-palette-black",
       focusTone: "focus-visible:ring-palette-black",
     },
     {
@@ -49,9 +46,7 @@ export function OverviewView({
       value: counts.researchIdeas,
       icon: Flask,
       view: "ideas" as const,
-      tone: "bg-palette-cream",
-      valueTone: "text-palette-black",
-      metaTone: "bg-palette-black text-palette-cream",
+      tone: "border-t-8 border-palette-green bg-palette-cream text-palette-black",
       focusTone: "focus-visible:ring-palette-black",
     },
     {
@@ -59,10 +54,8 @@ export function OverviewView({
       value: counts.projectIdeas,
       icon: Notebook,
       view: "ideas" as const,
-      tone: "bg-palette-black",
-      valueTone: "text-palette-cream",
-      metaTone: "bg-palette-cream text-palette-black",
-      focusTone: "focus-visible:ring-palette-cream",
+      tone: "border-t-8 border-palette-terracotta bg-palette-cream text-palette-black",
+      focusTone: "focus-visible:ring-palette-black",
     },
   ];
   const workstreams = rankWorkstreams(snapshot.workstreams).slice(0, 4);
@@ -73,51 +66,28 @@ export function OverviewView({
         className="grid gap-px border bg-border sm:grid-cols-2 xl:grid-cols-4"
       >
         {summaries.map(
-          ({
-            label,
-            value,
-            icon: Icon,
-            view,
-            tone,
-            valueTone,
-            metaTone,
-            focusTone,
-          }) => (
+          ({ label, value, icon: Icon, view, tone, focusTone }) => (
             <button
               key={label}
               type="button"
               className={cn(
-                "group p-5 text-left transition-[filter] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset",
+                "group min-h-56 p-6 text-left transition-[filter] hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset sm:min-h-60",
                 tone,
                 focusTone,
               )}
               onClick={() => onSelectView(view)}
             >
               <span
-                className={cn(
-                  "flex items-center justify-between px-2 py-1",
-                  metaTone,
-                )}
+                className="flex items-center justify-between"
+                aria-hidden="true"
               >
-                <Icon className="size-4" />
-                <span className="text-[0.68rem] font-bold uppercase tracking-[0.12em]">
-                  Open
-                </span>
+                <Icon className="size-6" />
+                <ArrowUpRight className="size-6 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </span>
-              <strong
-                className={cn(
-                  "mt-6 block text-3xl font-bold tabular-nums",
-                  valueTone,
-                )}
-              >
+              <strong className="mt-8 block text-5xl font-black leading-none tabular-nums sm:text-6xl">
                 {value}
               </strong>
-              <span
-                className={cn(
-                  "mt-1 inline-block px-2 py-1 text-sm font-bold",
-                  metaTone,
-                )}
-              >
+              <span className="mt-3 block text-xl font-black leading-tight sm:text-2xl">
                 {label}
               </span>
               <span className="sr-only">

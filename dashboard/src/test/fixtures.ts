@@ -2,46 +2,148 @@ import { vi } from "vitest";
 
 export const entities = [
   {
-    id: "project.motion-atlas", type: "project", title: "Motion Atlas", privacy: "private", status: "active",
-    sources: ["demo:fictional"], aliases: [], tags: ["motion", "internship"], links: ["person.rhea-sen", "experience.meridian", "record.hidden"], role: "primary",
-    updated: "2026-09-12T12:00:00Z", path: "projects/motion-atlas/overview.md",
-    summary: "A compact prototype for inspecting transitions between motion clips.", sectionTitles: [], sections: [],
+    id: "project.motion-atlas",
+    type: "project",
+    title: "Motion Atlas",
+    privacy: "private",
+    status: "active",
+    sources: ["demo:fictional"],
+    aliases: [],
+    tags: ["motion", "internship"],
+    links: ["person.rhea-sen", "experience.meridian", "record.hidden"],
+    role: "primary",
+    updated: "2026-09-12T12:00:00Z",
+    path: "projects/motion-atlas/overview.md",
+    summary:
+      "A compact prototype for inspecting transitions between motion clips.",
+    sectionTitles: [],
+    sections: [],
   },
   {
-    id: "project.eval-notebook", type: "project", title: "Eval Notebook", privacy: "private", status: "active",
-    sources: ["demo:fictional"], aliases: [], tags: ["evaluation"], links: ["person.rhea-sen"], role: "primary",
-    updated: "2026-09-11T12:00:00Z", path: "projects/eval-notebook/overview.md",
-    summary: "An evidence-first experiment notebook.", sectionTitles: [], sections: [],
+    id: "project.eval-notebook",
+    type: "project",
+    title: "Eval Notebook",
+    privacy: "private",
+    status: "active",
+    sources: ["demo:fictional"],
+    aliases: [],
+    tags: ["evaluation"],
+    links: ["person.rhea-sen"],
+    role: "primary",
+    updated: "2026-09-11T12:00:00Z",
+    path: "projects/eval-notebook/overview.md",
+    summary: "An evidence-first experiment notebook.",
+    sectionTitles: [],
+    sections: [],
   },
   {
-    id: "person.rhea-sen", type: "person", title: "Rhea Sen", privacy: "private", status: "active",
-    sources: ["demo:fictional"], aliases: [], tags: ["mentor"], links: ["project.eval-notebook"], role: "primary",
-    updated: "2026-09-10T12:00:00Z", path: "people/rhea-sen/profile.md",
-    summary: "Research mentor for evaluation work.", sectionTitles: [], sections: [],
+    id: "project.archive",
+    type: "project",
+    title: "Archived Prototype",
+    privacy: "private",
+    status: "archived",
+    sources: ["demo:fictional"],
+    aliases: [],
+    tags: ["archive"],
+    links: [],
+    role: "primary",
+    updated: "2026-08-01T12:00:00Z",
+    path: "projects/archive/overview.md",
+    summary: "A parked prototype retained for reference.",
+    sectionTitles: [],
+    sections: [],
   },
   {
-    id: "experience.meridian", type: "experience", title: "Meridian Interactive", privacy: "private", status: "active",
-    sources: ["demo:fictional"], aliases: [], tags: ["internship"], links: ["project.motion-atlas"], role: "primary",
-    updated: "2026-09-09T12:00:00Z", path: "experience/meridian/overview.md",
-    summary: "A technical internship focused on careful prototypes.", sectionTitles: [], sections: [],
+    id: "person.rhea-sen",
+    type: "person",
+    title: "Rhea Sen",
+    privacy: "private",
+    status: "active",
+    sources: ["demo:fictional"],
+    aliases: [],
+    tags: ["mentor"],
+    links: ["project.eval-notebook"],
+    role: "primary",
+    updated: "2026-09-10T12:00:00Z",
+    path: "people/rhea-sen/profile.md",
+    summary: "Research mentor for evaluation work.",
+    sectionTitles: [],
+    sections: [],
   },
   {
-    id: "idea.research-verifier", type: "idea", ideaKind: "research", title: "Evidence verifier", privacy: "private", status: "draft",
-    sources: ["demo:fictional"], aliases: [], tags: ["research"], links: ["project.eval-notebook"], role: "primary",
-    updated: "2026-09-08T12:00:00Z", path: "ideas/research/verifier.md",
-    summary: "Test a layered verifier.", submission: { projectTitle: "Predict Before You Track", projectDescription: "Test a layered verifier.", advisorHelp: "Evaluation guidance." }, sectionTitles: [], sections: [],
+    id: "experience.meridian",
+    type: "experience",
+    title: "Meridian Interactive",
+    privacy: "private",
+    status: "active",
+    sources: ["demo:fictional"],
+    aliases: [],
+    tags: ["internship"],
+    links: ["project.motion-atlas"],
+    role: "primary",
+    updated: "2026-09-09T12:00:00Z",
+    path: "experience/meridian/overview.md",
+    summary: "A technical internship focused on careful prototypes.",
+    sectionTitles: [],
+    sections: [],
   },
   {
-    id: "idea.project-cloudscore", type: "idea", ideaKind: "project", title: "CloudScore", privacy: "private", status: "draft",
-    sources: ["demo:fictional"], aliases: [], tags: ["community"], links: [], role: "primary",
-    updated: "2026-09-07T12:00:00Z", path: "ideas/projects/cloudscore.md",
-    summary: "A small community for rating cloud photographs.", sectionTitles: [], sections: [],
+    id: "idea.research-verifier",
+    type: "idea",
+    ideaKind: "research",
+    title: "Evidence verifier",
+    privacy: "private",
+    status: "draft",
+    sources: ["demo:fictional"],
+    aliases: [],
+    tags: ["research"],
+    links: ["project.eval-notebook"],
+    role: "primary",
+    updated: "2026-09-08T12:00:00Z",
+    path: "ideas/research/verifier.md",
+    summary: "Test a layered verifier.",
+    submission: {
+      projectTitle: "Predict Before You Track",
+      projectDescription: "Test a layered verifier.",
+      advisorHelp: "Evaluation guidance.",
+    },
+    sectionTitles: [],
+    sections: [],
   },
   {
-    id: "draft.advisor-brief", type: "draft", title: "Draft · grouped-split advisor brief", privacy: "private", status: "draft",
-    sources: ["demo:fictional"], aliases: [], tags: [], links: ["person.rhea-sen"], role: "primary",
-    updated: "2026-09-12T12:00:00Z", path: "people/rhea-sen/drafts/advisor-brief.md",
-    summary: "A draft awaiting manual review.", sectionTitles: [], sections: [],
+    id: "idea.project-cloudscore",
+    type: "idea",
+    ideaKind: "project",
+    title: "CloudScore",
+    privacy: "private",
+    status: "draft",
+    sources: ["demo:fictional"],
+    aliases: [],
+    tags: ["community"],
+    links: [],
+    role: "primary",
+    updated: "2026-09-07T12:00:00Z",
+    path: "ideas/projects/cloudscore.md",
+    summary: "A small community for rating cloud photographs.",
+    sectionTitles: [],
+    sections: [],
+  },
+  {
+    id: "draft.advisor-brief",
+    type: "draft",
+    title: "Draft · grouped-split advisor brief",
+    privacy: "private",
+    status: "draft",
+    sources: ["demo:fictional"],
+    aliases: [],
+    tags: [],
+    links: ["person.rhea-sen"],
+    role: "primary",
+    updated: "2026-09-12T12:00:00Z",
+    path: "people/rhea-sen/drafts/advisor-brief.md",
+    summary: "A draft awaiting manual review.",
+    sectionTitles: [],
+    sections: [],
   },
 ];
 
@@ -51,45 +153,163 @@ export const snapshot = {
   generatedAt: "2026-09-12T12:00:00Z",
   entities,
   counts: {
-    total: 7,
-    byType: { project: 2, person: 1, experience: 1, idea: 2, draft: 1 },
+    total: 8,
+    byType: { project: 3, person: 1, experience: 1, idea: 2, draft: 1 },
     byIdeaKind: { research: 1, project: 1 },
-    byStatus: { active: 4, draft: 3 },
+    byStatus: { active: 4, draft: 3, archived: 1 },
     reviewItems: 1,
     workstreams: 2,
     excluded: { restricted: 0, invalid: 0, duplicateId: 0 },
   },
-  capabilities: { readOnly: true, writes: false, emailSend: false, operations: false, restricted: false, sources: false },
-  boundaries: { canonicalSource: "git-head", readOnly: true, operations: "not-instrumented", restricted: "excluded", sources: "excluded", outreach: "draft-only" },
-  reviewItems: [{ title: "Draft · grouped-split advisor brief", parentId: "person.rhea-sen", privacy: "private", updated: "2026-09-12T12:00:00Z", path: "people/rhea-sen/drafts/advisor-brief.md", id: "review.advisor", kind: "draft", state: "needs_review", entityId: "draft.advisor-brief" }],
+  capabilities: {
+    readOnly: true,
+    writes: false,
+    emailSend: false,
+    operations: false,
+    restricted: false,
+    sources: false,
+  },
+  boundaries: {
+    canonicalSource: "git-head",
+    readOnly: true,
+    operations: "not-instrumented",
+    restricted: "excluded",
+    sources: "excluded",
+    outreach: "draft-only",
+  },
+  reviewItems: [
+    {
+      title: "Draft · grouped-split advisor brief",
+      parentId: "person.rhea-sen",
+      privacy: "private",
+      updated: "2026-09-12T12:00:00Z",
+      path: "people/rhea-sen/drafts/advisor-brief.md",
+      id: "review.advisor",
+      kind: "draft",
+      state: "needs_review",
+      entityId: "draft.advisor-brief",
+    },
+  ],
   workstreams: [
-    { ...entities[0], linkedEntities: ["person.rhea-sen", "experience.meridian"], linkedPeople: ["person.rhea-sen"], attention: ["Label contact intervals"], nextAction: "Freeze transition pairs before changing the method." },
-    { ...entities[1], linkedEntities: ["person.rhea-sen"], linkedPeople: ["person.rhea-sen"], attention: [], nextAction: "Review the grouped partition manifest." },
+    {
+      ...entities[0],
+      linkedEntities: ["person.rhea-sen", "experience.meridian"],
+      linkedPeople: ["person.rhea-sen"],
+      attention: ["Label contact intervals"],
+      nextAction: "Freeze transition pairs before changing the method.",
+    },
+    {
+      ...entities[1],
+      linkedEntities: ["person.rhea-sen"],
+      linkedPeople: ["person.rhea-sen"],
+      attention: [],
+      nextAction: "Review the grouped partition manifest.",
+    },
   ],
   operations: [],
   graph: {
-    nodes: entities.filter((entity) => entity.type !== "draft").map((entity) => ({ id: entity.id, type: entity.type, title: entity.title, privacy: entity.privacy, status: entity.status, tags: entity.tags, incomingCount: 1, outgoingCount: entity.links.length, neighborCount: entity.links.length })),
+    nodes: entities
+      .filter((entity) => entity.type !== "draft")
+      .map((entity) => ({
+        id: entity.id,
+        type: entity.type,
+        title: entity.title,
+        privacy: entity.privacy,
+        status: entity.status,
+        tags: entity.tags,
+        incomingCount: 1,
+        outgoingCount: entity.links.length,
+        neighborCount: entity.links.length,
+      })),
     edges: [
-      { id: "edge.motion-rhea", from: "project.motion-atlas", to: "person.rhea-sen", kind: "related_to", provenance: "frontmatter.links", declaredBy: "project.motion-atlas", sourcePath: "projects/motion-atlas/overview.md", semanticStatus: "untyped", evidence: "reason_not_structured", review: "not_represented", privacy: "private" },
-      { id: "edge.motion-meridian", from: "project.motion-atlas", to: "experience.meridian", kind: "related_to", provenance: "frontmatter.links", declaredBy: "project.motion-atlas", sourcePath: "projects/motion-atlas/overview.md", semanticStatus: "untyped", evidence: "reason_not_structured", review: "not_represented", privacy: "private" },
-      { id: "edge-eval-rhea", from: "project.eval-notebook", to: "person.rhea-sen", kind: "related_to", provenance: "frontmatter.links", declaredBy: "project.eval-notebook", sourcePath: "projects/eval-notebook/overview.md", semanticStatus: "untyped", evidence: "reason_not_structured", review: "not_represented", privacy: "private" },
+      {
+        id: "edge.motion-rhea",
+        from: "project.motion-atlas",
+        to: "person.rhea-sen",
+        kind: "related_to",
+        provenance: "frontmatter.links",
+        declaredBy: "project.motion-atlas",
+        sourcePath: "projects/motion-atlas/overview.md",
+        semanticStatus: "untyped",
+        evidence: "reason_not_structured",
+        review: "not_represented",
+        privacy: "private",
+      },
+      {
+        id: "edge.motion-meridian",
+        from: "project.motion-atlas",
+        to: "experience.meridian",
+        kind: "related_to",
+        provenance: "frontmatter.links",
+        declaredBy: "project.motion-atlas",
+        sourcePath: "projects/motion-atlas/overview.md",
+        semanticStatus: "untyped",
+        evidence: "reason_not_structured",
+        review: "not_represented",
+        privacy: "private",
+      },
+      {
+        id: "edge-eval-rhea",
+        from: "project.eval-notebook",
+        to: "person.rhea-sen",
+        kind: "related_to",
+        provenance: "frontmatter.links",
+        declaredBy: "project.eval-notebook",
+        sourcePath: "projects/eval-notebook/overview.md",
+        semanticStatus: "untyped",
+        evidence: "reason_not_structured",
+        review: "not_represented",
+        privacy: "private",
+      },
     ],
   },
 };
 
-export const repo = { root: "/tmp/fixture", revision: snapshot.revision, branch: "main", dirty: false, canonicalSource: "git-head" };
+export const repo = {
+  root: "/tmp/fixture",
+  revision: snapshot.revision,
+  branch: "main",
+  dirty: false,
+  canonicalSource: "git-head",
+};
 
 export function mockApi(options: { repoFails?: boolean } = {}) {
-  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
-    const path = String(input);
-    if (path.endsWith("/api/v1/snapshot")) return new Response(JSON.stringify({ ok: true, snapshot }), { status: 200 });
-    if (path.endsWith("/api/v1/repo")) {
-      if (options.repoFails) return new Response(JSON.stringify({ ok: false, error: { message: "Git unavailable" } }), { status: 503 });
-      return new Response(JSON.stringify({ ok: true, repo }), { status: 200 });
-    }
-    const id = decodeURIComponent(path.split("/").pop() || "");
-    const summary = entities.find((entity) => entity.id === id);
-    if (summary) return new Response(JSON.stringify({ ok: true, entity: { ...summary, body: `# ${summary.title}\n\nFixture body.` }, revision: snapshot.revision }), { status: 200 });
-    return new Response(JSON.stringify({ ok: false, error: { message: "Not found" } }), { status: 404 });
-  }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input);
+      if (path.endsWith("/api/v1/snapshot"))
+        return new Response(JSON.stringify({ ok: true, snapshot }), {
+          status: 200,
+        });
+      if (path.endsWith("/api/v1/repo")) {
+        if (options.repoFails)
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              error: { message: "Git unavailable" },
+            }),
+            { status: 503 },
+          );
+        return new Response(JSON.stringify({ ok: true, repo }), {
+          status: 200,
+        });
+      }
+      const id = decodeURIComponent(path.split("/").pop() || "");
+      const summary = entities.find((entity) => entity.id === id);
+      if (summary)
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            entity: { ...summary, body: `# ${summary.title}\n\nFixture body.` },
+            revision: snapshot.revision,
+          }),
+          { status: 200 },
+        );
+      return new Response(
+        JSON.stringify({ ok: false, error: { message: "Not found" } }),
+        { status: 404 },
+      );
+    }),
+  );
 }

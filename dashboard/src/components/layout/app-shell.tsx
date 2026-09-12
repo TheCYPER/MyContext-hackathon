@@ -21,7 +21,7 @@ interface AppShellProps {
 
 export function AppShell({ children, ...props }: AppShellProps) {
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen bg-palette-green text-foreground dark:bg-palette-black">
       <a
         href="#main-content"
         className="fixed left-3 top-3 z-[100] -translate-y-20 border border-primary bg-foreground px-3 py-2 text-sm text-background focus:translate-y-0"

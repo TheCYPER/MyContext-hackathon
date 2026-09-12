@@ -186,7 +186,7 @@ export function App() {
         <main
           id="main-content"
           tabIndex={-1}
-          className="mx-auto max-w-7xl px-4 py-8 outline-none sm:px-6 sm:py-10"
+          className="mx-3 my-3 max-w-7xl border bg-background px-4 py-8 outline-none sm:mx-6 sm:my-6 sm:px-6 sm:py-10 2xl:mx-auto"
         >
           {isSyntheticDemo(data.snapshot.entities) && (
             <aside
@@ -210,7 +210,7 @@ export function App() {
             <p className="border-l-2 border-primary pl-2 text-xs font-bold uppercase tracking-[0.16em] text-foreground">
               {meta.kicker}
             </p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+            <h1 className="mt-3 text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl">
               {meta.title}
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">

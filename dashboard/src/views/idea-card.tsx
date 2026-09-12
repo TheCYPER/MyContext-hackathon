@@ -1,6 +1,8 @@
 import type { DashboardSnapshot, Entity } from "../types";
+import { cn } from "../lib/utils";
 import { RelationTrail } from "../components/relation-trail";
 import { StatusBadge } from "../components/status-badge";
+import type { StatusLayout } from "../components/status-collection";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -8,11 +10,13 @@ import { Card, CardContent } from "../components/ui/card";
 export function EntityIdeaCard({
   idea,
   snapshot,
+  layout = "standard",
   onOpenEntity,
   onOpenGraph,
 }: {
   idea: Entity;
   snapshot: DashboardSnapshot;
+  layout?: StatusLayout;
   onOpenEntity: (id: string) => void;
   onOpenGraph: (id: string) => void;
 }) {
@@ -20,10 +24,49 @@ export function EntityIdeaCard({
     idea.ideaKind === "research"
       ? idea.submission?.projectTitle || idea.title
       : idea.title;
+
+  if (layout === "compact") {
+    return (
+      <Card className="min-w-0 border-0">
+        <CardContent className="grid min-w-0 gap-4 p-4 sm:grid-cols-[minmax(12rem,0.8fr)_minmax(0,1.2fr)]">
+          <div className="min-w-0">
+            <StatusBadge status={idea.status} />
+            <Button
+              type="button"
+              variant="link"
+              className="mt-2 h-auto min-w-0 max-w-full justify-start whitespace-normal break-words p-0 text-left text-lg font-black leading-tight text-foreground"
+              onClick={() => onOpenEntity(idea.id)}
+            >
+              {title}
+            </Button>
+          </div>
+          <div className="min-w-0">
+            <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+              {idea.summary || "No problem statement is projected."}
+            </p>
+            <RelationTrail
+              record={idea}
+              entities={snapshot.entities}
+              edges={snapshot.graph.edges}
+              onOpenEntity={onOpenEntity}
+              onOpenGraph={onOpenGraph}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between gap-3">
+    <Card
+      className={cn(
+        "min-w-0",
+        layout === "featured" && "border-l-4 border-l-primary",
+        layout === "working" && "border-l-4 border-l-signal",
+      )}
+    >
+      <CardContent className="min-w-0 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Badge variant="secondary">
             {idea.ideaKind === "research"
               ? "Research question"
@@ -34,7 +77,7 @@ export function EntityIdeaCard({
         <Button
           type="button"
           variant="link"
-          className="mt-4 h-auto justify-start p-0 text-left text-base font-bold text-foreground"
+          className="mt-5 h-auto min-w-0 max-w-full justify-start whitespace-normal break-words p-0 text-left text-xl font-black leading-tight text-foreground sm:text-2xl"
           onClick={() => onOpenEntity(idea.id)}
         >
           {title}
