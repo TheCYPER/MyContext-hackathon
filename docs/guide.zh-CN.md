@@ -6,7 +6,7 @@ MyContext 保存你在学业、研究和工作中积累的上下文，让 Codex 
 
 ![MyContext 虚构学业与工作场景](assets/screenshots/overview.png)
 
-*截图来自前端重新设计前的演示版本。*
+*截图展示当前界面，使用仓库自带的虚构演示资料。*
 
 ## 先体验演示
 

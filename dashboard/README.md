@@ -6,8 +6,7 @@ context repository; your AI assistant uses those same records during a task.
 
 ![Connected academic and professional context](../docs/assets/screenshots/graph.png)
 
-This screenshot shows the earlier layout; the current dashboard uses the React
-and shadcn interface described below.
+The demo above uses the current React and shadcn dashboard.
 
 ## Run locally
 
