@@ -1,4 +1,6 @@
-import { Laptop, Moon, Sun } from "lucide-react";
+import { Desktop as Laptop } from "@phosphor-icons/react/Desktop";
+import { Moon } from "@phosphor-icons/react/Moon";
+import { Sun } from "@phosphor-icons/react/Sun";
 
 import { useThemeStore, type Theme } from "../../stores/theme-store";
 import { Button } from "../ui/button";

@@ -1,5 +1,5 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { X } from "@phosphor-icons/react/X";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
@@ -17,9 +17,9 @@ export const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrim
   ({ className, children, ...props }, ref) => (
     <DialogPrimitive.Portal>
       <DialogOverlay />
-      <DialogPrimitive.Content ref={ref} className={cn("fixed left-1/2 top-1/2 z-50 grid max-h-[88vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl border bg-background p-6 shadow-2xl outline-none", className)} {...props}>
+      <DialogPrimitive.Content ref={ref} className={cn("fixed left-1/2 top-1/2 z-50 grid max-h-[88vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden border bg-background p-6 shadow-lg outline-none", className)} {...props}>
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <DialogPrimitive.Close className="absolute right-4 top-4 p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <X className="size-4" /><span className="sr-only">Close</span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>

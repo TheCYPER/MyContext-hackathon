@@ -1,4 +1,4 @@
-import { Menu } from "lucide-react";
+import { List as Menu } from "@phosphor-icons/react/List";
 import { useRef, useState } from "react";
 
 import type { ViewName } from "../../hooks/use-hash-view";
@@ -29,7 +29,7 @@ export function Header(props: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const routeSelected = useRef(false);
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/85 px-4 py-3 backdrop-blur-xl sm:px-6">
+    <header className="sticky top-0 z-30 border-b bg-background px-4 py-3 sm:px-6">
       <div className="mx-auto flex max-w-7xl items-center gap-2">
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild><Button type="button" variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation"><Menu /></Button></SheetTrigger>

@@ -1,4 +1,13 @@
-import { BriefcaseBusiness, CircleGauge, FolderKanban, GitFork, Lightbulb, Network, Settings2, Sparkles, Users } from "lucide-react";
+import { AddressBook } from "@phosphor-icons/react/AddressBook";
+import { Briefcase } from "@phosphor-icons/react/Briefcase";
+import { Crosshair } from "@phosphor-icons/react/Crosshair";
+import { FolderSimple } from "@phosphor-icons/react/FolderSimple";
+import { GitBranch } from "@phosphor-icons/react/GitBranch";
+import { Notebook } from "@phosphor-icons/react/Notebook";
+import { ShareNetwork } from "@phosphor-icons/react/ShareNetwork";
+import { SlidersHorizontal } from "@phosphor-icons/react/SlidersHorizontal";
+import { SquaresFour } from "@phosphor-icons/react/SquaresFour";
+import { StackSimple } from "@phosphor-icons/react/StackSimple";
 import type { ComponentType } from "react";
 
 import { viewAvailable } from "../../lib/model.mjs";
@@ -7,16 +16,20 @@ import type { ViewName } from "../../hooks/use-hash-view";
 import type { CapabilitySet } from "../../types";
 import { Button } from "../ui/button";
 
-export const NAV_ITEMS: Array<{ view: ViewName; label: string; icon: ComponentType<{ className?: string }> }> = [
-  { view: "desk", label: "Overview", icon: CircleGauge },
-  { view: "workstreams", label: "Current focus", icon: Sparkles },
-  { view: "ideas", label: "Ideas", icon: Lightbulb },
-  { view: "runs", label: "Runs", icon: GitFork },
-  { view: "people", label: "People", icon: Users },
-  { view: "projects", label: "Projects", icon: FolderKanban },
-  { view: "experience", label: "Experience", icon: BriefcaseBusiness },
-  { view: "atlas", label: "Graph", icon: Network },
-  { view: "system", label: "System", icon: Settings2 },
+export const NAV_ITEMS: Array<{
+  view: ViewName;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}> = [
+  { view: "desk", label: "Overview", icon: SquaresFour },
+  { view: "workstreams", label: "Current focus", icon: Crosshair },
+  { view: "ideas", label: "Ideas", icon: Notebook },
+  { view: "runs", label: "Runs", icon: GitBranch },
+  { view: "people", label: "People", icon: AddressBook },
+  { view: "projects", label: "Projects", icon: FolderSimple },
+  { view: "experience", label: "Experience", icon: Briefcase },
+  { view: "atlas", label: "Graph", icon: ShareNetwork },
+  { view: "system", label: "System", icon: SlidersHorizontal },
 ];
 
 interface NavigationProps {
@@ -28,19 +41,24 @@ interface NavigationProps {
 export function Navigation({ view, capabilities, onSelect }: NavigationProps) {
   return (
     <nav aria-label="Workspace" className="grid gap-1">
-      {NAV_ITEMS.filter((item) => viewAvailable(item.view, capabilities)).map(({ view: target, label, icon: Icon }) => (
-        <Button
-          key={target}
-          type="button"
-          variant="ghost"
-          className={cn("h-10 w-full justify-start px-3 text-muted-foreground", target === view && "bg-accent text-accent-foreground")}
-          aria-current={target === view ? "page" : undefined}
-          onClick={() => onSelect(target)}
-        >
-          <Icon className="size-4" />
-          {label}
-        </Button>
-      ))}
+      {NAV_ITEMS.filter((item) => viewAvailable(item.view, capabilities)).map(
+        ({ view: target, label, icon: Icon }) => (
+          <Button
+            key={target}
+            type="button"
+            variant="ghost"
+            className={cn(
+              "h-10 w-full justify-start border-l-2 border-transparent px-3 text-muted-foreground",
+              target === view && "border-primary bg-primary/10 font-bold text-foreground",
+            )}
+            aria-current={target === view ? "page" : undefined}
+            onClick={() => onSelect(target)}
+          >
+            <Icon className="size-4" />
+            {label}
+          </Button>
+        ),
+      )}
     </nav>
   );
 }
@@ -48,7 +66,9 @@ export function Navigation({ view, capabilities, onSelect }: NavigationProps) {
 export function Brand() {
   return (
     <div className="flex items-center gap-3">
-      <span className="grid size-9 place-items-center rounded-xl bg-primary/12 text-primary"><Network className="size-5" /></span>
+      <span className="grid size-9 place-items-center border border-primary/40 bg-primary/10 text-primary">
+        <StackSimple className="size-5" />
+      </span>
       <div>
         <div className="text-sm font-semibold tracking-tight">MyContext</div>
         <div className="text-xs text-muted-foreground">Work &amp; learning</div>
@@ -59,10 +79,12 @@ export function Brand() {
 
 export function Sidebar(props: NavigationProps) {
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-card/70 px-4 py-5 backdrop-blur md:flex">
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-card px-4 py-5 md:flex">
       <Brand />
-      <div className="mt-8"><Navigation {...props} /></div>
-      <p className="mt-auto rounded-lg bg-muted/70 p-3 text-xs leading-relaxed text-muted-foreground">
+      <div className="mt-8">
+        <Navigation {...props} />
+      </div>
+      <p className="mt-auto border-l-2 border-primary bg-muted/70 p-3 text-xs leading-relaxed text-muted-foreground">
         Local, read-only context from committed Git HEAD.
       </p>
     </aside>

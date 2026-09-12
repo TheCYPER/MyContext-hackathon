@@ -1,4 +1,5 @@
-import { ArrowRight, Network } from "lucide-react";
+import { ArrowRight } from "@phosphor-icons/react/ArrowRight";
+import { ShareNetwork as Network } from "@phosphor-icons/react/ShareNetwork";
 
 import { buildLegacyRelations, relationTrail } from "../lib/model.mjs";
 import type { Entity, GraphEdge } from "../types";

@@ -45,4 +45,19 @@ describe("relationship graph", () => {
     await user.click(screen.getByRole("button", { name: "Trace" }));
     expect(screen.getByText(/no recorded connection path/i)).toBeInTheDocument();
   });
+
+  it("keeps the focused canvas inside its mobile scroll boundary", async () => {
+    window.location.hash = "atlas";
+    mockApi();
+    render(<App />);
+
+    const canvas = await screen.findByRole("group", { name: "Focused context relationships" });
+    expect(canvas.parentElement).toHaveClass("min-w-0", "max-w-full");
+
+    const nearbyRecord = screen.getAllByRole("button", { name: /Evidence verifier/i })
+      .find((element) => element.tagName === "BUTTON");
+    expect(nearbyRecord).toBeDefined();
+    expect(nearbyRecord!).toHaveClass("min-w-0", "max-w-full");
+    expect(nearbyRecord!.firstElementChild).toHaveClass("truncate");
+  });
 });

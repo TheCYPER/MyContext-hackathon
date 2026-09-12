@@ -1,4 +1,5 @@
-import { Search, X } from "lucide-react";
+import { MagnifyingGlass as Search } from "@phosphor-icons/react/MagnifyingGlass";
+import { X } from "@phosphor-icons/react/X";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Entity, SearchScope } from "../../types";
@@ -70,7 +71,7 @@ export function GlobalSearch({ entities, query, scope, onQueryChange, onScopeCha
           onChange={(event) => { onQueryChange(event.target.value); setOpen(Boolean(event.target.value.trim())); }}
           onFocus={() => { if (query.trim()) setOpen(true); }}
           placeholder="Search people, ideas, and projects…"
-          className="h-9 w-full rounded-lg border bg-background/80 pl-9 pr-9 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+          className="h-9 w-full border bg-background/80 pl-9 pr-9 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
         />
         {query && <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 size-9" aria-label="Clear search" onClick={() => { onQueryChange(""); setOpen(false); }}><X /></Button>}
       </label>
@@ -81,9 +82,9 @@ export function GlobalSearch({ entities, query, scope, onQueryChange, onScopeCha
         </SelectContent>
       </Select>
       {open && query.trim() && (
-        <div id="search-results" className="absolute left-0 right-0 top-11 z-40 max-h-96 overflow-auto rounded-xl border bg-popover p-2 shadow-xl sm:right-38" role="region" aria-label="Search results">
+        <div id="search-results" className="absolute left-0 right-0 top-11 z-40 max-h-96 overflow-auto border bg-popover p-2 shadow-md sm:right-38" role="region" aria-label="Search results">
           {results.length ? results.map((entity) => (
-            <button key={entity.id} type="button" className="flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { setOpen(false); onOpenEntity(entity.id); }}>
+            <button key={entity.id} type="button" className="flex w-full items-start gap-3 px-3 py-2 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { setOpen(false); onOpenEntity(entity.id); }}>
               <span className="mt-0.5 rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">{entity.type}</span>
               <span className="min-w-0"><strong className="block truncate text-sm">{entity.title}</strong><span className="line-clamp-1 text-xs text-muted-foreground">{entity.summary || entity.id}</span></span>
             </button>
