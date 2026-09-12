@@ -34,25 +34,53 @@ module MyContextCapture
     end
   end
 
-  # Some native JSON versions populate Hash subclasses through rb_hash_aset,
-  # bypassing an overridden []=. A plain object keeps the parser on the custom
-  # object protocol, so duplicate checks run on every decoded key.
-  class UniqueObject
-    def initialize
-      @seen = {}
-    end
-
-    def []=(key, _value)
-      raise Error.new("duplicate_field") if @seen.key?(key)
-      @seen[key] = true
-    end
-  end
-
   def self.parse_json(text)
-    JSON.parse(text, object_class: UniqueObject) # Reject duplicates before creating mutable application state.
-    JSON.parse(text)
+    raise Error.new("invalid_json") unless text.is_a?(String) && text.bytesize <= MAX_INPUT
+    parsed = JSON.parse(text, max_nesting: 100)
+    audit_json_keys!(text)
+    parsed
   rescue JSON::ParserError, EncodingError, ArgumentError
     raise Error.new("invalid_json")
+  end
+
+  # The built-in parser validates JSON grammar first. Some JSON versions discard
+  # duplicate keys before object_class callbacks, so audit the original tokens.
+  # Each object owns its key set; strings are decoded by JSON itself so escaped
+  # and literal spellings of the same key cannot bypass duplicate detection.
+  def self.audit_json_keys!(text)
+    frames = []
+    cursor = 0
+    while cursor < text.bytesize
+      case text.getbyte(cursor)
+      when 123 # {
+        frames << { kind: :object, expecting_key: true, keys: {} }
+      when 91 # [
+        frames << { kind: :array }
+      when 125, 93 # } ]
+        frames.pop
+      when 44 # ,
+        frame = frames.last
+        frame[:expecting_key] = true if frame && frame[:kind] == :object
+      when 34 # "
+        start = cursor
+        cursor += 1
+        while cursor < text.bytesize
+          byte = text.getbyte(cursor)
+          break if byte == 34
+          cursor += byte == 92 ? 2 : 1 # Skip the escaped byte after a backslash.
+        end
+        raise Error.new("invalid_json") if cursor >= text.bytesize
+        frame = frames.last
+        if frame && frame[:kind] == :object && frame[:expecting_key]
+          key = JSON.parse(text.byteslice(start, cursor - start + 1))
+          raise Error.new("duplicate_field") if frame[:keys].key?(key)
+          frame[:keys][key] = true
+          frame[:expecting_key] = false
+        end
+      end
+      raise Error.new("invalid_json") if frames.length > 100
+      cursor += 1
+    end
   end
 
   def self.text!(value, limit)

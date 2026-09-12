@@ -24,8 +24,9 @@ Source and secret checks are defense in depth, not a complete personal-data dete
 The global skill uses an explicit local binding, never the current project or demo
 as a silent fallback. Its local queue holds selected private facts with restrictive
 filesystem permissions; queued facts are not canonical records and do not appear in
-the dashboard. Capture checks the selected payload and bounded policy/Git metadata,
-not ignored directories or transcript stores. A skill is not a sandbox: the local
+the dashboard. Capture checks the selected payload, bounded policy/Git metadata,
+and canonical headers in selected link scopes. It excludes ignored file contents
+and transcript stores. A skill is not a sandbox: the local
 assistant's filesystem permissions and the owner's context policy still apply.
 
 Never put credentials, private keys, government identifiers, complete account

@@ -203,15 +203,21 @@ class ContextCaptureTest < Minitest::Test
 
   def test_secret_duplicate_unknown_and_control_fields_do_not_enter_queue
     secret = "ghp_" + "A" * 30
+    duplicate_root = '{"version":1,"version":1,"event_id":"duplicate-root","title":"Fixture","date":"2026-09-12","facts":[{"text":"A fixture fact.","evidence":"inference","source":"demo:fictional"}]}'
+    duplicate_nested = '{"version":1,"event_id":"duplicate-nested","title":"Fixture","date":"2026-09-12","facts":[{"text":"A fixture fact.","evidence":"user_confirmed","evidence":"inference","source":"demo:fictional"}]}'
+    duplicate_escaped = '{"version":1,"\u0076ersion":1,"event_id":"duplicate-escaped","title":"Fixture","date":"2026-09-12","facts":[{"text":"A fixture fact.","evidence":"inference","source":"demo:fictional"}]}'
+    assert_equal 2, duplicate_root.scan(/"version"\s*:/).length, "fixture must contain two literal root keys"
+    assert_equal 2, duplicate_nested.scan(/"evidence"\s*:/).length, "fixture must contain two literal nested keys"
+    assert_equal 2, duplicate_escaped.scan(/"(?:version|\\u0076ersion)"\s*:/).length, "fixture must contain literal and escaped versions of one key"
     cases = [
       ["unknown field", payload.merge("unknown" => "field")],
       ["control character", payload.merge("title" => "bad\nheading")],
       ["impossible date", payload.merge("date" => "2026-02-30")],
       ["non-integer version", payload.merge("version" => 1.0)],
       ["secret", payload.merge("facts" => [{ "text" => secret, "evidence" => "artifact", "source" => "fixture" }])],
-      ["duplicate root key", JSON.generate(payload).sub('"version":1', '"version":1,"version":1')],
-      ["duplicate nested key", JSON.generate(payload).sub('"evidence":"user_confirmed"', '"evidence":"user_confirmed","evidence":"inference"')],
-      ["duplicate escaped key", JSON.generate(payload).sub('"version":1', '"version":1,"\u0076ersion":1')],
+      ["duplicate root key", duplicate_root],
+      ["duplicate nested key", duplicate_nested],
+      ["duplicate escaped key", duplicate_escaped],
       ["oversize input", payload.merge("facts" => [{ "text" => "A" * 33_000, "evidence" => "inference", "source" => "fixture" }])]
     ]
     cases.each do |name, data|
@@ -223,6 +229,40 @@ class ContextCaptureTest < Minitest::Test
       refute File.exist?(@state)
       assert_equal @original, head
     end
+  end
+
+  def test_json_key_audit_handles_escaped_strings_object_boundaries_and_nesting_limit
+    # Exercise the parser independently of capture's field schema. Punctuation
+    # inside strings is not structure, and keys may repeat in separate objects.
+    hook = <<~'CODE'
+      require "json"
+      fixture = {
+        "quoted\"key\\" => "comma, braces { } brackets [ ] colon: escaped quote\" and slash\\",
+        "nested" => [{ "same" => 1 }, { "same" => 2 }],
+        "unicode" => "研究记录"
+      }
+      parsed = MyContextCapture.parse_json(JSON.generate(fixture))
+      raise "round trip changed" unless parsed == fixture
+      parsed["mutable"] = true
+      key = JSON.generate("quoted\"key\\")
+      begin
+        MyContextCapture.parse_json("{#{key}:1,#{key}:2}")
+        raise "escaped duplicate accepted"
+      rescue MyContextCapture::Error => error
+        raise unless error.code == "duplicate_field"
+      end
+      begin
+        MyContextCapture.parse_json("[" * 101 + "0" + "]" * 101)
+        raise "excessive nesting accepted"
+      rescue MyContextCapture::Error => error
+        raise unless error.code == "invalid_json"
+      end
+      puts "audit: OK"
+    CODE
+    out, err, status = Open3.capture3(ENVIRONMENT, RbConfig.ruby, "-r", CAPTURE, "-e", hook)
+    assert status.success?, "JSON lexical audit failed: #{err}"
+    assert_equal "audit: OK\n", out
+    assert_empty err
   end
 
   def test_queue_and_journal_symlinks_never_escape

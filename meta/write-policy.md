@@ -23,7 +23,7 @@ Only while that policy is enabled, the capture command may append one new privat
 
 This exception does not authorize changes to existing files, current-state pages, indexes, profiles, policy, remote configuration, corrections, conflict resolution, or deletion. Those changes retain the exact reviewed proposal contract below. Automatic capture never fetches or pushes; local commits are not remote backups. Disable future automatic append by reviewing a policy change back to `mode: "review"`.
 
-Capture is an action performed by an assistant when the skill is invoked, not a background watcher or a guaranteed end-of-session hook. It may inspect only the selected payload and bounded policy/Git metadata; it must not scan conversation stores or unrelated ignored files.
+Capture is an action performed by an assistant when the skill is invoked, not a background watcher or a guaranteed end-of-session hook. It may inspect the selected payload, bounded policy/Git metadata, and canonical headers in the selected links' scopes; it must not scan conversation stores or unrelated ignored files.
 
 ## Approval and application
 
