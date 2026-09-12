@@ -20,15 +20,69 @@ status: active
 ---
 ```
 
-Required fields: `id`, `type`, `title`, `privacy`, `updated`, `sources`.
+Required fields: `id`, `type`, `title`, `privacy`, `updated`, `sources`,
+`aliases`, `tags`, `links`, and `status`. The list fields are required even when
+empty; `sources` must contain at least one locator.
 
 - `type`: `profile | domain | experience | person | project | idea | journal | draft | session_export`
 - `privacy`: `public | private | restricted`
 - `status`: `active | archived | draft`. This is the record's lifecycle, not an employment or project completion field. Keep a completed internship or prototype `active` when its current overview remains useful context; describe completion and dates in the body. Use `archived` for parked or superseded records that should be excluded from default retrieval.
-- `date`: optional event date in `YYYY-MM-DD` format; use it for journal files.
-- `aliases`, `tags`, `links`: optional YAML lists.
+- `date`: event date in `YYYY-MM-DD` format; required for journal files and must
+  match the date in the journal filename.
+- `aliases`, `tags`, `links`: required YAML lists; they may be empty.
+- `relations`: optional list of typed relationship assertions. `links` remains the
+  compatible, untyped way to record a connection and does not imply a semantic
+  relationship.
 
 IDs are globally unique and stay stable when a file moves. `updated` is the content update time; historical event time belongs in `date` and the body.
+
+## Typed relationships
+
+Use `relations` when the direction and meaning of a connection are supported by
+explicit evidence. Each assertion has its own globally unique, stable
+`relation.*` ID:
+
+```yaml
+relations:
+  - id: relation.person.ada.participates_in.project.atlas
+    predicate: participates_in
+    target: project.atlas
+    evidence: user_confirmed
+    sources:
+      - "user:2026-08-19"
+    review: confirmed
+    privacy: private
+    valid_from: 2026-06-01
+    valid_to: 2026-08-31
+    note: "Worked on the evaluation milestone."
+```
+
+Required assertion fields are `id`, `predicate`, `target`, `evidence`, `sources`,
+`review`, and `privacy`. `sources` is a non-empty list of source locators.
+`evidence` is one of `artifact`, `first_party`, `user_confirmed`,
+`external_primary`, `external_secondary`, or `inference`. `review` is
+`unreviewed`, `confirmed`, or `rejected`. Optional `valid_from` and `valid_to`
+are inclusive ISO dates (`YYYY-MM-DD`), and `valid_from` cannot follow
+`valid_to`. `note`, when present, is a short non-empty explanation.
+
+Predicates have these directional endpoint constraints:
+
+| Predicate | Declaring record | Target record |
+| --- | --- | --- |
+| `participates_in` | `person`, `profile` | `project`, `experience`, `domain`, `idea` |
+| `part_of` | `project`, `experience`, `idea` | `project`, `experience`, `domain` |
+| `about` | `journal`, `draft`, `idea` | any knowledge record except a session export |
+| `motivated_by` | `project`, `idea` | `project`, `idea`, `experience`, `person`, `journal`, `domain` |
+| `supports` | any knowledge record except a session export | any knowledge record except a session export |
+| `contradicts` | any knowledge record except a session export | any knowledge record except a session export |
+| `supersedes` | any non-profile knowledge record except a session export | the same record type |
+
+An assertion cannot target its declaring record. The target must exist in the
+complete context. Relation IDs cannot be reused, even for assertions in different
+files. Keep rejected assertions for audit history; default retrieval and graph
+paths do not follow them. The effective privacy of a projected relationship is
+the strictest privacy of the assertion, its two endpoint records, and any record
+referenced by a `context:*` evidence locator.
 
 ## Idea convention
 

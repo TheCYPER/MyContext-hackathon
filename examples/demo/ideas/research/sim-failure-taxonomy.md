@@ -8,6 +8,15 @@ sources: ["demo:fictional"]
 aliases: ["simulation failure taxonomy", "reset validity", "失败分类", "研究想法", "仿真失败"]
 tags: ["research-idea", "robotics", "simulation"]
 links: ["project.tabletop-sim", "domain.robotics", "person.omar-patel"]
+relations:
+  - id: "relation.sim-failure-taxonomy-motivated-by-reset-note"
+    predicate: "motivated_by"
+    target: "journal.sim-reset"
+    evidence: "inference"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    note: "Curated inference from this synthetic idea's stated dependence on the fictional reset-velocity finding."
 status: "draft"
 idea_kind: "research"
 ---

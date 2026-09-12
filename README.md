@@ -45,6 +45,18 @@ and refuses to overwrite modified data or silently keep an outdated example. The
 different Git histories. The dashboard reads the demo's **committed HEAD**;
 uncommitted note edits do not appear until committed.
 
+Smoke-check the demo's curated semantic graph from the same source checkout:
+
+```bash
+bash scripts/query-graph.sh --root "$PWD/.local/demo" --json neighbors person.rhea-sen
+bash scripts/query-graph.sh --root "$PWD/.local/demo" --include-inference --include-drafts --json \
+  path idea.evidence-calibration project.eval-notebook
+```
+
+The command returns stable record and relation IDs, the exact Git revision, edge
+evidence, sources, review state, privacy, and validity dates. It reports recorded
+assertion paths; it does not infer a transitive fact from the path.
+
 No `npm install` is necessary. Setup reports missing prerequisites without
 installing system packages. If port 4318 is occupied, use `npm start -- --port 4319`.
 
@@ -249,12 +261,12 @@ retry behavior. There is no service, database, transcript watcher, or API key to
 
 | Capability | Current behavior |
 | --- | --- |
-| Portable knowledge | Markdown/YAML records with stable IDs, privacy labels, dates, sources, and links |
+| Portable knowledge | Markdown/YAML records with stable IDs, privacy labels, dates, sources, legacy links, and typed relation assertions |
 | Retrieval | Ranked lexical search over an explicitly selected context; lightweight Librarian guidance |
 | Context Skills | Global retrieval and selected-fact capture, plus local research, outreach drafts and explicit session summaries |
 | Capture | Private review queue by default; explicit opt-in for new journal entries committed locally |
 | Human review | Exact diff/hash proposals for existing-record edits and policy changes; no generic apply engine |
-| Dashboard | Local read-only academic/work context, experiences, projects, research/project ideas, people and graph |
+| Dashboard | Local read-only academic/work context and an explainable graph spanning experiences, projects, ideas, people, journals, and drafts |
 | Installation | Synthetic demo, blank personal repository, project links and a conflict-safe global library binding |
 
 There is no built-in hosted AI service, vector index, graph database, inbox
@@ -270,12 +282,44 @@ The Librarian Skill uses that workflow without requiring another agent service.
 Lexical search is still sensitive to wording; it is not a measured semantic-search
 benchmark or a guarantee that every relevant note is found.
 
-The current graph represents recorded links among context records. A richer
-knowledge graph would attach meaning to each relation, such as “participates in,”
-and retain its source. RDF illustrates this as subject–predicate–object triples.
-See [W3C RDF Concepts](https://www.w3.org/TR/rdf11-concepts/#section-triples).
-Typed relations and a redesigned visualization are planned separately; existing
-untyped links must not silently become claims about people.
+The graph projects two deliberately different kinds of connection. Existing
+`links` remain untyped `related_to` connections. Curated frontmatter `relations`
+are directed assertions with a predicate, target, evidence class, source locators,
+review state, privacy, and optional validity dates and note. The supported
+predicates are `participates_in`, `part_of`, `about`, `motivated_by`, `supports`,
+`contradicts`, and `supersedes`. The dashboard shows both kinds and explains the
+metadata behind a selected typed edge; it never upgrades a legacy link into a
+semantic fact.
+
+For example, a fictional journal record can make this reviewed assertion:
+
+```yaml
+relations:
+  - id: "relation.eval-leakage-about-eval-notebook"
+    predicate: "about"
+    target: "project.eval-notebook"
+    evidence: "artifact"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    valid_from: "2026-08-24"
+    note: "Curated from this synthetic journal entry's explicit account."
+```
+
+The record containing the list is the subject. `confirmed` means that a human has
+curated the assertion; in the distributed demo it confirms only a fictional
+scenario statement. `artifact` identifies support in an inspectable record and is
+not a claim that the demo contains a real-world artifact. `inference` stays
+explicit when the relationship interprets the recorded text. Relation privacy is
+combined with both endpoints and any canonical `context:*` source records so a
+relation cannot expose more restricted supporting context.
+
+Graph projection, traversal, and CLI queries read the selected context repository's
+committed Git `HEAD`. They do not infer missing relationships, follow untyped links
+as semantic evidence, mutate Markdown, or require a graph database. RDF illustrates
+the subject–predicate–object shape, but MyContext keeps the canonical assertion in
+Markdown/YAML. See [W3C RDF Concepts](https://www.w3.org/TR/rdf11-concepts/#section-triples)
+and [the dashboard guide](dashboard/README.md) for the API and command examples.
 
 ## Team development
 

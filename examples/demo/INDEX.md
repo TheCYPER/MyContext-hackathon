@@ -14,3 +14,8 @@ Read `profile/summary.md` with this index, then choose a route. All records desc
 | What can I include in a portfolio? | `projects/research-portfolio/overview.md` | Experience scope and review notes |
 
 Open at most five canonical files on the first pass. Stay with the selected route; sources are scenario metadata, not evidence of real credentials or experiments. The dashboard reads the independent demo repository's committed HEAD.
+
+Some records declare a small curated `relations` list for semantic graph examples.
+Treat those entries as directed fictional assertions with their own evidence and
+review metadata. Keep the older `links` as untyped navigation and do not infer a
+predicate from them.

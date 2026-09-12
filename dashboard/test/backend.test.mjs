@@ -25,7 +25,7 @@ function yamlList(values) {
   return `\n${values.map((value) => `  - ${JSON.stringify(value)}`).join("\n")}`;
 }
 
-function knowledge({ id, type, title, privacy, status = "active", ideaKind, tags = [], links = [], body = "# Notes\n\nFixture" }) {
+function knowledge({ id, type, title, privacy, status = "active", ideaKind, tags = [], links = [], relations = [], body = "# Notes\n\nFixture" }) {
   const privacyLine = privacy === undefined ? "" : `privacy: ${privacy}\n`;
   const ideaKindLine = ideaKind === undefined ? "" : `idea_kind: ${ideaKind}`;
   return [
@@ -41,6 +41,7 @@ function knowledge({ id, type, title, privacy, status = "active", ideaKind, tags
     `aliases: ${yamlList([])}`,
     `tags: ${yamlList(tags)}`,
     `links: ${yamlList(links)}`,
+    `relations: ${JSON.stringify(relations)}`,
     `status: ${status}`,
     "---",
     "",
@@ -227,8 +228,8 @@ test("projector uses Git HEAD and excludes restricted, malformed, and source rec
   assert.deepEqual(projection.counts.byIdeaKind, { project: 1, research: 1 });
   assert.equal(projection.operations.length, 0);
   assert.equal(projection.boundaries.operations, "not-instrumented");
-  assert.equal(projection.schemaVersion, 4);
-  assert.equal(projection.graph.edges.length, 4);
+  assert.equal(projection.schemaVersion, 5);
+  assert.equal(projection.graph.edges.length, 6);
   assert.equal(projection.graph.edges.some((edge) => edge.from === edge.to), false);
   const projectEdge = projection.graph.edges.find((edge) =>
     edge.from === "project.alpha" && edge.to === "person.mentor");
@@ -253,10 +254,13 @@ test("projector uses Git HEAD and excludes restricted, malformed, and source rec
   assert.equal(experienceEdge.sourcePath, "experience/studio/overview.md");
   assert.equal(projection.entities.find((entity) =>
     entity.id === "draft.experience.studio.certificate").parentId, "experience.studio");
+  const experienceDraftEdge = projection.graph.edges.find((edge) => edge.from === "draft.experience.studio.certificate");
+  const outreachDraftEdge = projection.graph.edges.find((edge) => edge.from === "draft.outreach.mentor.hello");
+  assert.ok(projection.graph.nodes.some((node) => node.id === "draft.outreach.mentor.hello"));
   assert.deepEqual(projection.graph.adjacency["experience.studio"], {
-    incomingEdgeIds: [],
+    incomingEdgeIds: [experienceDraftEdge.id],
     outgoingEdgeIds: [experienceEdge.id],
-    neighborIds: ["project.alpha"],
+    neighborIds: ["draft.experience.studio.certificate", "project.alpha"],
   });
   assert.deepEqual(projection.graph.adjacency["project.alpha"], {
     incomingEdgeIds: [experienceEdge.id, ideaProjectEdge.id].sort(),
@@ -264,9 +268,9 @@ test("projector uses Git HEAD and excludes restricted, malformed, and source rec
     neighborIds: ["experience.studio", "idea.research.verifier", "person.mentor"],
   });
   assert.deepEqual(projection.graph.adjacency["person.mentor"], {
-    incomingEdgeIds: [ideaPersonEdge.id, projectEdge.id].sort(),
+    incomingEdgeIds: [ideaPersonEdge.id, projectEdge.id, outreachDraftEdge.id].sort(),
     outgoingEdgeIds: [],
-    neighborIds: ["idea.research.verifier", "project.alpha"],
+    neighborIds: ["draft.outreach.mentor.hello", "idea.research.verifier", "project.alpha"],
   });
   assert.deepEqual(projection.graph.adjacency["idea.research.verifier"], {
     incomingEdgeIds: [],
@@ -275,7 +279,7 @@ test("projector uses Git HEAD and excludes restricted, malformed, and source rec
   });
   assert.equal(projection.graph.nodes.find((node) => node.id === "project.alpha").outgoingCount, 1);
   assert.equal(projection.graph.nodes.find((node) => node.id === "experience.studio").outgoingCount, 1);
-  assert.equal(projection.graph.nodes.find((node) => node.id === "person.mentor").incomingCount, 2);
+  assert.equal(projection.graph.nodes.find((node) => node.id === "person.mentor").incomingCount, 3);
   assert.equal(projection.graph.nodes.find((node) => node.id === "idea.research.verifier").ideaKind, "research");
   const researchIdea = projection.entities.find((entity) => entity.id === "idea.research.verifier");
   assert.equal(researchIdea.submission.projectTitle, "Predict Before You Track");
@@ -297,13 +301,13 @@ test("read-only API exposes summaries and lazy entity details", async () => {
   const snapshotResponse = await fetch(`${baseUrl}/api/v1/snapshot`);
   const snapshot = await snapshotResponse.json();
   assert.equal(snapshot.ok, true);
-  assert.equal(snapshot.snapshot.schemaVersion, 4);
+  assert.equal(snapshot.snapshot.schemaVersion, 5);
   assert.equal(snapshot.snapshot.entities.length, 7);
   assert.deepEqual(snapshot.snapshot.operations, []);
   assert.equal(snapshot.snapshot.boundaries.readOnly, true);
   assert.ok(snapshot.snapshot.entities.every((entity) => !("body" in entity) && !("sections" in entity)));
-  assert.deepEqual(snapshot.snapshot.graph.adjacency["person.mentor"].neighborIds, ["idea.research.verifier", "project.alpha"]);
-  assert.deepEqual(snapshot.snapshot.graph.adjacency["experience.studio"].neighborIds, ["project.alpha"]);
+  assert.deepEqual(snapshot.snapshot.graph.adjacency["person.mentor"].neighborIds, ["draft.outreach.mentor.hello", "idea.research.verifier", "project.alpha"]);
+  assert.deepEqual(snapshot.snapshot.graph.adjacency["experience.studio"].neighborIds, ["draft.experience.studio.certificate", "project.alpha"]);
   assert.equal(snapshot.snapshot.entities.find((entity) =>
     entity.id === "idea.research.verifier").submission.projectDescription, "Test a layered verifier.");
 

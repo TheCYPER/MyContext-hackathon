@@ -5,6 +5,7 @@ require "date"
 require "find"
 require "psych"
 require "time"
+require_relative "knowledge_relations"
 
 SCAFFOLD = !!ARGV.delete("--scaffold")
 ROOT = File.expand_path(ARGV[0] || File.join(__dir__, ".."))
@@ -120,7 +121,7 @@ rescue ArgumentError
   false
 end
 
-def validate_knowledge(rel, content, ids)
+def validate_knowledge(rel, content, ids, records, relation_ids)
   data = parse_frontmatter(content, rel)
   return unless data
 
@@ -134,6 +135,39 @@ def validate_knowledge(rel, content, ids)
     error("#{rel}: duplicate id #{id.inspect}; first seen in #{ids[id]}")
   else
     ids[id] = rel
+  end
+
+  normalized_relations = []
+  raw_relations = data["relations"]
+  if raw_relations.is_a?(Array)
+    raw_relations.each_with_index do |raw_relation, index|
+      raw_id = raw_relation.is_a?(Hash) ? raw_relation["id"] : nil
+      if raw_id.is_a?(String) && raw_id.match?(KnowledgeRelations::ID_PATTERN)
+        if relation_ids.key?(raw_id)
+          error("#{rel}: duplicate relation id #{raw_id.inspect}; first seen in #{relation_ids[raw_id]}")
+        else
+          relation_ids[raw_id] = "#{rel}:relations[#{index}]"
+        end
+      end
+      begin
+        normalized_relations.concat(KnowledgeRelations.normalize_relations(
+          { "relations" => [raw_relation] }, declared_by: id, source_path: rel
+        ))
+      rescue KnowledgeRelations::ValidationError => e
+        e.errors.each { |message| error(message.sub("relations[0]", "relations[#{index}]")) }
+      end
+    end
+  else
+    begin
+      normalized_relations = KnowledgeRelations.normalize_relations(data,
+        declared_by: id, source_path: rel)
+    rescue KnowledgeRelations::ValidationError => e
+      e.errors.each { |message| error(message) }
+    end
+  end
+  if id.is_a?(String) && data["type"].is_a?(String)
+    records << { "id" => id, "type" => data["type"], "path" => rel,
+      "relations" => normalized_relations }
   end
 
   error("#{rel}: invalid type #{data['type'].inspect}") unless TYPES.include?(data["type"])
@@ -237,6 +271,8 @@ unless File.directory?(ROOT)
 end
 
 ids = {}
+records = []
+relation_ids = {}
 case_paths = {}
 symlinks = []
 
@@ -286,7 +322,36 @@ Find.find(ROOT) do |path|
     error("#{rel}: invalid UTF-8")
     next
   end
-  validate_knowledge(rel, content, ids) if knowledge_file?(rel)
+  validate_knowledge(rel, content, ids, records, relation_ids) if knowledge_file?(rel)
+end
+
+records_by_id = records.group_by { |record| record["id"] }
+records.each do |record|
+  record["relations"].each do |relation|
+    target_matches = records_by_id[relation["target"]]
+    if !target_matches || target_matches.empty?
+      error("#{record['path']}: relation #{relation['id'].inspect} targets missing entity #{relation['target'].inspect}")
+      next
+    end
+    if target_matches.length > 1
+      error("#{record['path']}: relation #{relation['id'].inspect} targets duplicate entity id #{relation['target'].inspect}")
+      next
+    end
+    endpoint_error = KnowledgeRelations.endpoint_error(relation["predicate"],
+      from_type: record["type"], to_type: target_matches.first["type"],
+      from_id: record["id"], to_id: relation["target"])
+    error("#{record['path']}: relation #{relation['id'].inspect} #{endpoint_error}") if endpoint_error
+    relation["sources"].each do |source|
+      match = source.match(/\Acontext:([a-z0-9][a-z0-9._-]*)\z/)
+      next unless match
+      source_matches = records_by_id[match[1]]
+      if !source_matches || source_matches.empty?
+        error("#{record['path']}: relation #{relation['id'].inspect} references missing context source #{match[1].inspect}")
+      elsif source_matches.length > 1
+        error("#{record['path']}: relation #{relation['id'].inspect} references duplicate context source #{match[1].inspect}")
+      end
+    end
+  end
 end
 
 error("CLAUDE.md: required symlink is missing") unless SCAFFOLD || symlinks.include?("CLAUDE.md")

@@ -4,9 +4,9 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { ATLAS_LANES, buildLegacyRelations, chooseFocusNode, focusNeighborhood, layoutAtlas,
+import { ATLAS_LANES, buildLegacyRelations, buildRelations, chooseFocusNode, filterRelations, focusNeighborhood, layoutAtlas,
   layoutFocusGraph, rankWorkstreams, relationReferences, relationTrail,
-  academicContextCounts, isSyntheticDemo, viewAvailable, shortestPath } from "../public/model.mjs";
+  academicContextCounts, isSyntheticDemo, relationIsCurrent, viewAvailable, shortestPath } from "../public/model.mjs";
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DASHBOARD_DIR = path.resolve(TEST_DIR, "..");
@@ -34,16 +34,20 @@ test("atlas layout includes every supported node without an ID allowlist", () =>
     { id: "experience.studio", type: "experience", title: "Studio internship" },
     { id: "person.new", type: "person", title: "New person" },
     { id: "profile.summary", type: "profile", title: "Profile" },
+    { id: "journal.2026-09-12", type: "journal", title: "Experiment event" },
+    { id: "draft.review", type: "draft", title: "Draft note" },
   ];
   const layout = layoutAtlas(nodes);
 
   assert.deepEqual(layout.nodes.map((node) => node.id).sort(), nodes.map((node) => node.id).sort());
   assert.equal(layout.positions.size, nodes.length);
   assert.notDeepEqual(layout.positions.get("project.future"), layout.positions.get("project.mycontext-margin"));
-  assert.equal(ATLAS_LANES.length, 6);
+  assert.equal(ATLAS_LANES.length, 8);
   assert.equal(ATLAS_LANES.some((lane) => lane.type === "idea"), true);
   assert.equal(ATLAS_LANES.some((lane) => lane.type === "experience"), true);
   assert.ok(layout.positions.has("experience.studio"));
+  assert.ok(layout.positions.has("journal.2026-09-12"));
+  assert.ok(layout.positions.has("draft.review"));
   assert.ok(layout.height >= 410);
 });
 
@@ -60,6 +64,7 @@ test("legacy links preserve declarations while refusing invented semantics", () 
   const betweenAB = relations.find((relation) => relation.id === "edge.ab");
 
   assert.equal(betweenAB.kind, "related_to");
+  assert.equal(betweenAB.semanticStatus, "untyped");
   assert.equal(betweenAB.provenance, "legacy_link");
   assert.equal(betweenAB.evidence, "reason_not_structured");
   assert.equal(betweenAB.review, "not_represented");
@@ -74,6 +79,62 @@ test("legacy links preserve declarations while refusing invented semantics", () 
   assert.deepEqual(references.incoming.map((item) => item.otherId), ["draft.hidden", "project.a"]);
   assert.deepEqual(relationTrail(relations, "person.b").map(({ otherId, direction }) =>
     [otherId, direction]), [["draft.hidden", "incoming"], ["project.a", "mutual"]]);
+});
+
+test("unified relations preserve typed direction, parallel predicates, assertions, and legacy links", () => {
+  const entities = [
+    { id: "project.a", type: "project", title: "A", links: ["idea.b"] },
+    { id: "idea.b", type: "idea", title: "B", links: [] },
+  ];
+  const edges = [
+    { id: "legacy.a.b", from: "idea.b", to: "project.a", kind: "related_to", semanticStatus: "untyped" },
+    { id: "relation.a.b.about.1", from: "project.a", to: "idea.b", kind: "about", semanticStatus: "typed",
+      declaredBy: "project.a", sourcePath: "projects/a.md", evidence: "journal:event-1", sources: ["doi:1"], review: "confirmed",
+      validFrom: "2026-01-01", declarations: [{ from: "project.a", to: "idea.b" }] },
+    { id: "relation.a.b.supports.1", from: "project.a", to: "idea.b", kind: "supports", semanticStatus: "typed",
+      review: "unreviewed", sourcePath: "projects/a.md", evidence: "results/table-2" },
+    { id: "relation.b.a.contradicts.1", from: "idea.b", to: "project.a", kind: "contradicts", semanticStatus: "typed",
+      review: "rejected", sourcePath: "ideas/b.md" },
+  ];
+  const relations = buildRelations(entities, edges);
+
+  assert.deepEqual(relations.map((relation) => relation.id), [
+    "legacy.a.b", "relation.a.b.about.1", "relation.a.b.supports.1", "relation.b.a.contradicts.1",
+  ]);
+  const about = relations.find((relation) => relation.kind === "about");
+  assert.equal(about.from, "project.a");
+  assert.equal(about.to, "idea.b");
+  assert.equal(about.provenance, "frontmatter.relations");
+  assert.equal(about.sourcePath, "projects/a.md");
+  assert.equal(about.evidence, "journal:event-1");
+  assert.deepEqual(about.sources, ["doi:1"]);
+  assert.deepEqual(relationTrail(relations, "project.a").map((item) => [item.relation.kind, item.direction]), [
+    ["related_to", "outgoing"], ["about", "outgoing"], ["supports", "outgoing"], ["contradicts", "incoming"],
+  ]);
+});
+
+test("relation filters and paths default to current non-rejected assertions", () => {
+  const now = "2026-09-12T12:00:00Z";
+  const nodes = ["a", "b", "c"].map((id) => ({ id, type: "project", title: id }));
+  const relations = [
+    { id: "ab", from: "a", to: "b", kind: "supports", semanticStatus: "typed", review: "confirmed", evidence: "journal:event", validFrom: "2026-01-01" },
+    { id: "ba", from: "b", to: "a", kind: "about", semanticStatus: "typed", review: "unreviewed" },
+    { id: "bc-rejected", from: "b", to: "c", kind: "supports", semanticStatus: "typed", review: "rejected" },
+    { id: "bc-expired", from: "b", to: "c", kind: "supersedes", semanticStatus: "typed", review: "confirmed", validTo: "2025-12-31" },
+  ];
+  assert.equal(relationIsCurrent(relations[0], now), true);
+  assert.equal(relationIsCurrent(relations[3], now), false);
+  assert.deepEqual(filterRelations(relations, { at: now }).map((relation) => relation.id), ["ab", "ba"]);
+  assert.deepEqual(filterRelations(relations, { at: now, evidence: "present" }).map((relation) => relation.id), ["ab"]);
+  assert.deepEqual(filterRelations(relations, { at: now, evidence: "missing" }).map((relation) => relation.id), ["ba"]);
+  assert.equal(shortestPath(nodes, relations, "a", "c", { mode: "undirected", at: now }), null);
+  assert.deepEqual(shortestPath(nodes, relations, "a", "b", { mode: "directed", at: now }), {
+    nodeIds: ["a", "b"], relationIds: ["ab"],
+  });
+  assert.deepEqual(shortestPath(nodes, relations, "b", "a", { mode: "directed", at: now }), {
+    nodeIds: ["b", "a"], relationIds: ["ba"],
+  });
+  assert.equal(shortestPath(nodes, [relations[0]], "b", "a", { mode: "directed", at: now }), null);
 });
 
 test("focus neighborhood and layout are deterministic at one and two hops", () => {
@@ -168,15 +229,23 @@ test("frontend keeps projection and mobile review boundaries explicit", async ()
   assert.doesNotMatch(app, /research_fit|worked_on|builds_on/);
   assert.match(app, /role: "group"/);
   assert.match(app, /aperture-frame/);
-  assert.match(app, /Reason not structured/);
-  assert.match(app, /Incoming backlinks/);
+  assert.match(app, /reason not structured/i);
+  assert.match(app, /Incoming declarations/);
   assert.match(app, /shortestPath/);
   assert.match(app, /aperture highlights at most two hops/);
   assert.match(app, /renderViewAndFocus/);
   assert.match(app, /data-relation-id/);
   assert.match(app, /Records within two hops/);
-  assert.match(app, /two-hop.*visible legacy frontmatter links/);
+  assert.match(app, /two-hop.*explicit typed assertions and legacy links/);
   assert.match(app, /reverse \?/);
+  assert.match(app, /buildRelations/);
+  assert.match(app, /Follow typed arrows/);
+  assert.match(app, /frontmatter/);
+  assert.match(app, /includeOutOfValidity/);
+  assert.match(app, /sourcePath/);
+  assert.match(app, /revision_changed/);
+  assert.match(app, /bindGraphPanZoom/);
+  assert.match(app, /Focus ID or title/);
   assert.match(app, /experience: \(\) => renderRecordsView\("experience"\)/);
   assert.match(app, /ideas: renderIdeasView/);
   assert.match(app, /Research ideas/);
@@ -196,9 +265,12 @@ test("frontend keeps projection and mobile review boundaries explicit", async ()
   assert.match(app, /dom\.demoLabel\.hidden = !isSyntheticDemo\(state\.entities\)/);
   assert.match(html, /option value="experience"/);
   assert.match(html, /option value="idea"/);
+  assert.match(html, /option value="journal"/);
   assert.match(html, /tabindex="-1" aria-label="Close review margin"/);
   assert.match(css, /\.atlas-node\.is-experience/);
   assert.match(css, /\.atlas-node\.is-idea/);
+  assert.match(css, /\.atlas-node\.is-journal/);
+  assert.match(css, /\.aperture-edge\.is-typed/);
   assert.match(css, /\.idea-trajectory/);
   assert.match(server, /"\.mjs": "text\/javascript; charset=utf-8"/);
 });

@@ -6,6 +6,7 @@ require "json"
 require "open3"
 require "psych"
 require "time"
+require_relative "../scripts/knowledge_relations"
 ALLOWED_ROOTS = %w[profile domains projects ideas experience people journal].freeze
 ALLOWED_TYPES = %w[profile domain person project idea experience journal draft].freeze
 ALLOWED_PRIVACY = %w[public private restricted].freeze
@@ -146,6 +147,7 @@ def entity_from_blob(path, content)
   title = data["title"]
   status = data["status"]
   updated = normalized_timestamp(data["updated"])
+  date = KnowledgeRelations.normalize_date(data["date"])
   return [:invalid, nil] unless expected && type == expected && ALLOWED_TYPES.include?(type)
   return [:invalid, nil] unless id.is_a?(String) && id.match?(/\A[a-z0-9][a-z0-9._-]*\z/)
   return [:invalid, nil] unless title.is_a?(String) && !title.strip.empty?
@@ -153,14 +155,37 @@ def entity_from_blob(path, content)
   return [:invalid, nil] unless REQUIRED_ARRAYS.all? { |field| valid_string_array?(data[field]) }
   return [:invalid, nil] if data["sources"].empty?
   return [:invalid, nil] if type == "draft" && status != "draft"
+  if type == "journal"
+    date_in_path = path[%r{\Ajournal/\d{4}/(\d{4}-\d{2}-\d{2})-}, 1]
+    return [:invalid, nil] unless date && date == date_in_path
+  end
   sections = extract_sections(body)
   role, parent_id = derive_role_and_parent(path, data)
+  relations = []
+  invalid_relation_count = 0
+  if data.key?("relations")
+    if data["relations"].is_a?(Array)
+      data["relations"].each do |raw_relation|
+        begin
+          relations.concat(KnowledgeRelations.normalize_relations(
+            { "relations" => [raw_relation] }, declared_by: id, source_path: path
+          ))
+        rescue KnowledgeRelations::ValidationError
+          invalid_relation_count += 1
+        end
+      end
+    else
+      invalid_relation_count += 1
+    end
+  end
   entity = data.slice("id", "type", "title", "privacy", "status", *REQUIRED_ARRAYS).merge(
     "role" => role, "updated" => updated, "path" => path,
     "summary" => extract_summary(body),
     "sectionTitles" => sections.map { |section| section["title"] },
     "sections" => sections,
-    "body" => body.strip)
+    "body" => body.strip,
+    "_relations" => relations,
+    "_invalidRelationCount" => invalid_relation_count)
   if type == "idea"
     idea_kind = data["idea_kind"]
     return [:invalid, nil] unless ALLOWED_IDEA_KINDS.include?(idea_kind)
@@ -178,19 +203,19 @@ def entity_from_blob(path, content)
     end
   end
   entity["parentId"] = parent_id if parent_id
+  entity["date"] = date if date
   [:ok, entity]
 end
-def graph_for(entities)
-  nodes = entities.select do |entity|
-    %w[profile domain idea project experience person].include?(entity["type"]) &&
-      !%w[research draft event].include?(entity["role"])
-  end.map do |entity|
-    entity.slice("id", "type", "title", "privacy", "status", "tags", "ideaKind")
+def graph_for(entities, relation_exclusions = nil, relation_id_counts: nil)
+  relation_exclusions ||= Hash.new(0)
+  nodes = entities.map do |entity|
+    entity.slice("id", "type", "title", "privacy", "status", "tags", "ideaKind",
+      "path", "updated", "date", "role")
   end
   nodes_by_id = nodes.to_h { |node| [node["id"], node] }
-  edges_by_key = {}
+  edges = []
+  legacy_edges_by_key = {}
   entities.each do |entity|
-    next unless nodes_by_id.key?(entity["id"])
     entity["links"].uniq.each do |target_id|
       next if target_id == entity["id"]
       target = nodes_by_id[target_id]
@@ -198,9 +223,9 @@ def graph_for(entities)
       from = entity["id"]
       to = target_id
       key = [from, to, "related_to"].join("\0")
-      privacy = [nodes_by_id[from]["privacy"], nodes_by_id[to]["privacy"]]
-        .include?("private") ? "private" : "public"
-      edges_by_key[key] ||= {
+      privacy = KnowledgeRelations.effective_privacy(
+        nodes_by_id[from]["privacy"], nodes_by_id[to]["privacy"])
+      legacy_edges_by_key[key] ||= {
         "id" => "edge.#{Digest::SHA256.hexdigest(key)[0, 16]}",
         "from" => from,
         "to" => to,
@@ -215,7 +240,66 @@ def graph_for(entities)
       }
     end
   end
-  edges = edges_by_key.values.sort_by { |edge| edge["id"] }
+  edges.concat(legacy_edges_by_key.values)
+
+  relation_id_counts ||= entities.flat_map { |entity| entity["_relations"] }
+    .group_by { |relation| relation["id"] }.transform_values(&:length)
+  entities.each do |entity|
+    entity["_relations"].each do |relation|
+      unless relation_id_counts[relation["id"]] == 1
+        relation_exclusions["invalid"] += 1
+        next
+      end
+      if relation["privacy"] == "restricted"
+        relation_exclusions["restricted"] += 1
+        next
+      end
+      target = nodes_by_id[relation["target"]]
+      unless target
+        relation_exclusions["unavailableReference"] += 1
+        next
+      end
+      unless KnowledgeRelations.endpoint_allowed?(relation["predicate"],
+        from_type: entity["type"], to_type: target["type"],
+        from_id: entity["id"], to_id: target["id"])
+        relation_exclusions["invalid"] += 1
+        next
+      end
+      context_sources = relation["sources"].map do |source|
+        match = source.match(/\Acontext:([a-z0-9][a-z0-9._-]*)\z/)
+        match && match[1]
+      end.compact
+      unless context_sources.all? { |source_id| nodes_by_id.key?(source_id) }
+        relation_exclusions["unavailableReference"] += 1
+        next
+      end
+
+      definition = KnowledgeRelations::PREDICATES.fetch(relation["predicate"])
+      edge = {
+        "id" => relation["id"],
+        "from" => entity["id"],
+        "to" => target["id"],
+        "kind" => relation["predicate"],
+        "label" => definition["label"],
+        "semanticStatus" => "typed",
+        "provenance" => "frontmatter.relations",
+        "declaredBy" => entity["id"],
+        "sourcePath" => entity["path"],
+        "evidence" => relation["evidence"],
+        "sources" => relation["sources"].dup,
+        "review" => relation["review"],
+        "privacy" => KnowledgeRelations.effective_privacy(
+          relation["privacy"], nodes_by_id[entity["id"]]["privacy"], target["privacy"],
+          *context_sources.map { |source_id| nodes_by_id[source_id]["privacy"] }),
+        "declarations" => [{ "from" => entity["id"], "to" => target["id"] }]
+      }
+      edge["validFrom"] = relation["valid_from"] if relation["valid_from"]
+      edge["validTo"] = relation["valid_to"] if relation["valid_to"]
+      edge["note"] = relation["note"] if relation["note"]
+      edges << edge
+    end
+  end
+  edges.sort_by! { |edge| edge["id"] }
   adjacency = nodes_by_id.keys.sort.to_h do |id|
     [id, { "incomingEdgeIds" => [], "outgoingEdgeIds" => [], "neighborIds" => [] }]
   end
@@ -242,7 +326,8 @@ def graph_for(entities)
   {
     "nodes" => nodes.sort_by { |node| node["id"] },
     "edges" => edges,
-    "adjacency" => adjacency
+    "adjacency" => adjacency,
+    "predicateRegistry" => KnowledgeRelations.predicate_registry
   }
 end
 def build_projection(root)
@@ -258,7 +343,10 @@ def build_projection(root)
     "ls-tree", "-r", "-z", "--name-only", revision, "--", *ALLOWED_ROOTS
   )
   candidates = []
-  excluded = { "restricted" => 0, "invalid" => 0, "duplicateId" => 0 }
+  excluded = { "restricted" => 0, "invalid" => 0, "duplicateId" => 0,
+    "invalidRelation" => 0, "restrictedRelation" => 0,
+    "unavailableRelationReference" => 0 }
+  source_blobs = []
   raw_paths.split("\0").sort.each do |path|
     next if path.empty? || !path.end_with?(".md")
     unless canonical_path?(path)
@@ -266,6 +354,7 @@ def build_projection(root)
       next
     end
     content = git_capture(repository, "show", "#{revision}:#{path}")
+    source_blobs << [path, content]
     result, entity = entity_from_blob(path, content)
     if result == :ok
       candidates << entity
@@ -273,11 +362,27 @@ def build_projection(root)
       excluded[result.to_s] += 1
     end
   end
-  duplicate_ids = candidates.group_by { |entity| entity["id"] }
-    .select { |_id, group| group.length > 1 }.keys
+  all_relation_id_counts = Hash.new(0)
+  all_id_counts = source_blobs.each_with_object(Hash.new(0)) do |(_path, content), counts|
+    parsed = parse_frontmatter(content)
+    next unless parsed
+    data = parsed[0]
+    candidate_id = data["id"]
+    counts[candidate_id] += 1 if candidate_id.is_a?(String) &&
+      candidate_id.match?(/\A[a-z0-9][a-z0-9._-]*\z/)
+    next unless data["relations"].is_a?(Array)
+    data["relations"].each do |raw_relation|
+      next unless raw_relation.is_a?(Hash)
+      relation_id = raw_relation["id"]
+      all_relation_id_counts[relation_id] += 1 if relation_id.is_a?(String) &&
+        relation_id.match?(KnowledgeRelations::ID_PATTERN)
+    end
+  end
+  duplicate_ids = all_id_counts.select { |_id, count| count > 1 }.keys
   excluded["duplicateId"] = candidates.count { |entity| duplicate_ids.include?(entity["id"]) }
   entities = candidates.reject { |entity| duplicate_ids.include?(entity["id"]) }
     .sort_by { |entity| [entity["type"], entity["id"]] }
+  excluded["invalidRelation"] = entities.sum { |entity| entity["_invalidRelationCount"] }
   by_id = entities.to_h { |entity| [entity["id"], entity] }
   review_items = entities.select { |entity| entity["type"] == "draft" }.map do |entity|
     entity.slice("title", "parentId", "privacy", "updated", "path").merge(
@@ -298,8 +403,17 @@ def build_projection(root)
   counts_by_idea_kind = entities.select { |entity| entity["type"] == "idea" }
     .group_by { |entity| entity["ideaKind"] }.transform_values(&:length)
   counts_by_status = entities.group_by { |entity| entity["status"] }.transform_values(&:length)
+  relation_exclusions = Hash.new(0)
+  graph = graph_for(entities, relation_exclusions,
+    relation_id_counts: all_relation_id_counts)
+  excluded["invalidRelation"] += relation_exclusions["invalid"]
+  excluded["restrictedRelation"] = relation_exclusions["restricted"]
+  excluded["unavailableRelationReference"] = relation_exclusions["unavailableReference"]
+  projected_entities = entities.map do |entity|
+    entity.reject { |key, _value| key.start_with?("_") }
+  end
   {
-    "schemaVersion" => 4,
+    "schemaVersion" => 5,
     "revision" => revision,
     "generatedAt" => Time.now.utc.iso8601,
     "repo" => { "root" => repository, "revision" => revision,
@@ -309,11 +423,11 @@ def build_projection(root)
       "byIdeaKind" => counts_by_idea_kind,
       "byStatus" => counts_by_status, "reviewItems" => review_items.length,
       "workstreams" => workstreams.length, "excluded" => excluded },
-    "entities" => entities,
+    "entities" => projected_entities,
     "reviewItems" => review_items,
     "workstreams" => workstreams,
     "operations" => [],
-    "graph" => graph_for(entities),
+    "graph" => graph,
     "boundaries" => { "canonicalSource" => "git-head", "readOnly" => true,
       "operations" => "not-instrumented", "restricted" => "excluded",
       "sources" => "excluded", "outreach" => "draft-only" },
