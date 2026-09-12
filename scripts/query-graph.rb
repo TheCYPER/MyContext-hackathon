@@ -22,7 +22,7 @@ module MyContextGraphQuery
     date = Date.iso8601(value)
     raise InvalidInput, "--as-of must use YYYY-MM-DD" unless date.iso8601 == value
     date
-  rescue Date::Error
+  rescue ArgumentError
     raise InvalidInput, "--as-of must use YYYY-MM-DD"
   end
 
@@ -65,7 +65,7 @@ module MyContextGraphQuery
     return false if valid_from && Date.iso8601(valid_from) > as_of
     return false if valid_to && Date.iso8601(valid_to) < as_of
     true
-  rescue Date::Error
+  rescue ArgumentError
     false
   end
 

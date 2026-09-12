@@ -222,7 +222,9 @@ export function focusNeighborhood(nodes, relations, focusId, depth = 1) {
       compareRelations(left.relation, right.relation));
   }
 
-  const boundedDepth = Math.max(0, Math.min(2, Number(depth) || 1));
+  const numericDepth = Number(depth);
+  const boundedDepth = Number.isFinite(numericDepth)
+    ? Math.max(0, Math.min(2, Math.floor(numericDepth))) : 1;
   const distances = new Map([[focusId, 0]]);
   const queue = [focusId];
   for (let cursor = 0; cursor < queue.length; cursor += 1) {
@@ -254,15 +256,17 @@ export function focusNeighborhood(nodes, relations, focusId, depth = 1) {
 export function chooseFocusNode(nodes, relations, preferredId = null) {
   const visibleNodes = array(nodes).filter((node) => node?.id);
   if (preferredId && visibleNodes.some((node) => node.id === preferredId)) return preferredId;
-  const degree = new Map(visibleNodes.map((node) => [node.id, 0]));
+  // Focus the record with the broadest neighborhood; several assertions about
+  // the same pair should not outweigh connections to distinct records.
+  const neighbors = new Map(visibleNodes.map((node) => [node.id, new Set()]));
   for (const relation of array(relations)) {
-    if (degree.has(relation?.from) && degree.has(relation?.to)) {
-      degree.set(relation.from, degree.get(relation.from) + 1);
-      degree.set(relation.to, degree.get(relation.to) + 1);
+    if (relation?.from !== relation?.to && neighbors.has(relation?.from) && neighbors.has(relation?.to)) {
+      neighbors.get(relation.from).add(relation.to);
+      neighbors.get(relation.to).add(relation.from);
     }
   }
   return visibleNodes.slice().sort((left, right) =>
-    (degree.get(right.id) || 0) - (degree.get(left.id) || 0) || compareNodes(left, right))[0]?.id || null;
+    neighbors.get(right.id).size - neighbors.get(left.id).size || compareNodes(left, right))[0]?.id || null;
 }
 
 export function shortestPath(nodes, relations, startId, targetId, options = {}) {
@@ -377,8 +381,15 @@ export function layoutAtlas(nodes) {
     ATLAS_LANES.some((lane) => lane.type === node?.type));
   const positions = new Map();
   let longestLane = 0;
+  let nextX = 36;
+  const populatedTypes = new Set(supported.map((node) => node.type));
+  const lanes = ATLAS_LANES.filter((lane) => populatedTypes.has(lane.type)).map((lane) => {
+    const compact = { ...lane, x: nextX };
+    nextX += lane.width + 32;
+    return compact;
+  });
 
-  for (const lane of ATLAS_LANES) {
+  for (const lane of lanes) {
     const laneNodes = supported.filter((node) => node.type === lane.type)
       .sort((left, right) => String(left.title || left.id)
         .localeCompare(String(right.title || right.id)));
@@ -396,8 +407,8 @@ export function layoutAtlas(nodes) {
   return {
     nodes: supported,
     positions,
-    lanes: ATLAS_LANES,
-    width: 1824,
+    lanes,
+    width: Math.max(320, nextX + 4),
     height: Math.max(410, 58 + longestLane * 74 + 28),
   };
 }

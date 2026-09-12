@@ -70,10 +70,23 @@ The relationship view distinguishes two connection classes:
   reason, evidence, or review state.
 
 One- and two-hop neighborhoods can be filtered by predicate, review state,
-evidence availability, and current validity. The aperture controls select a focus
-record and one- or two-hop depth; its graph can be panned and zoomed. The connection
-finder selects a target and either follows directed typed arrows or navigates both
-directions across visible connections. Paths always omit rejected assertions and
+evidence availability, and current validity. Open **Filters** to adjust these;
+its summary shows active filters and the number of visible connections. Search
+**Find a record** by title, ID, or type, then choose a result with the mouse or
+Arrow Up/Down and Enter. Choose one or two hops around that record.
+
+The graph supports dragging to pan, zoom buttons, and **Fit**. With the canvas
+focused, arrow keys pan, `+`/`-` zoom, and `0` or Home resets the view. Ctrl/Cmd +
+wheel zooms while ordinary scrolling continues to move the page. **Connected
+records** provides readable titles and individual assertion buttons, including
+parallel connections, on desktop and mobile.
+
+Expand **Find a path** to select a destination and either follow directed typed
+arrows or navigate both directions across visible connections. Each path step can
+be inspected and returned to without losing the path. The graph highlights the
+portion inside the current neighborhood; the details list contains the full path.
+**Needs you** opens the review drawer while exploring the graph, preserving space
+for the canvas. Escape closes the drawer and returns focus to its button. Paths always omit rejected assertions and
 assertions outside their validity window, even when those edges are visible through
 inspection filters. A path
 describes recorded connectivity; it does not establish causality, endorsement, or

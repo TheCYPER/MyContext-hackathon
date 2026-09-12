@@ -110,7 +110,7 @@ Dir.mktmpdir("mycontext-relations-test-") do |root|
         "review" => "confirmed", "privacy" => "public"
       }]),
     "journal/2026/2026-08-20-alpha-started.md" => document(id: "journal.alpha.started",
-      type: "journal", title: "Alpha started", date: "2026-08-20", relations: [{
+      type: "journal", title: "Alpha started", privacy: "private", date: "2026-08-20", relations: [{
         "id" => "relation.journal.alpha.about.project.alpha",
         "predicate" => "about", "target" => "project.alpha", "evidence" => "artifact",
         "sources" => ["repo:alpha@abc123:README.md"], "review" => "unreviewed",
@@ -158,6 +158,22 @@ Dir.mktmpdir("mycontext-relations-test-") do |root|
     "legacy untyped links were not preserved")
   assert(projection["entities"].none? { |entity| entity.key?("relations") || entity.key?("_relations") },
     "raw relations leaked through entity projection")
+
+  # A public assertion must disappear when its context evidence becomes
+  # restricted; removing just the source node would leave its locator exposed.
+  journal_path = "journal/2026/2026-08-20-alpha-started.md"
+  File.write(File.join(root, journal_path), files.fetch(journal_path).sub("privacy: private", "privacy: restricted"))
+  Open3.capture3("git", "-C", root, "add", journal_path)
+  _stdout, stderr, status = Open3.capture3("git", "-C", root, "commit", "-m", "restrict synthetic evidence")
+  assert(status.success?, "restricted fixture commit failed: #{stderr}")
+  stdout, stderr, status = Open3.capture3(RbConfig.ruby, projector, root)
+  assert(status.success?, "restricted evidence projector failed: #{stderr}")
+  restricted_projection = JSON.parse(stdout)
+  assert(restricted_projection["graph"]["nodes"].none? { |node| node["id"] == "journal.alpha.started" },
+    "restricted context evidence node leaked")
+  assert(restricted_projection["graph"]["edges"].none? { |edge| edge["semanticStatus"] == "typed" },
+    "assertion using restricted context evidence leaked")
+  assert(!stdout.include?("context:journal.alpha.started"), "restricted evidence locator leaked")
 
   File.write(File.join(root, "projects/alpha/overview.md"), document(
     id: "project.alpha", type: "project", title: "Alpha", relations: [{

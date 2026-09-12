@@ -235,7 +235,7 @@ test("frontend keeps projection and mobile review boundaries explicit", async ()
   assert.match(app, /aperture highlights at most two hops/);
   assert.match(app, /renderViewAndFocus/);
   assert.match(app, /data-relation-id/);
-  assert.match(app, /Records within two hops/);
+  assert.match(app, /Connected records/);
   assert.match(app, /two-hop.*explicit typed assertions and legacy links/);
   assert.match(app, /reverse \?/);
   assert.match(app, /buildRelations/);
@@ -245,7 +245,7 @@ test("frontend keeps projection and mobile review boundaries explicit", async ()
   assert.match(app, /sourcePath/);
   assert.match(app, /revision_changed/);
   assert.match(app, /bindGraphPanZoom/);
-  assert.match(app, /Focus ID or title/);
+  assert.match(app, /Find a record/);
   assert.match(app, /experience: \(\) => renderRecordsView\("experience"\)/);
   assert.match(app, /ideas: renderIdeasView/);
   assert.match(app, /Research ideas/);
@@ -333,4 +333,80 @@ test("academic hubs keep dense one-hop and two-hop labels apart", () => {
       }
     }
   }
+});
+
+test("filtered atlas collapses empty lanes and keeps remaining records readable", () => {
+  const nodes = [
+    { id: "person.a", type: "person", title: "A" },
+    { id: "person.b", type: "person", title: "B" },
+    { id: "journal.a", type: "journal", title: "A" },
+  ];
+  const layout = layoutAtlas(nodes);
+  assert.deepEqual(layout.lanes.map((lane) => lane.type), ["person", "journal"]);
+  assert.equal(layout.lanes[0].x, 36);
+  assert.ok(layout.width < 600, "two populated columns should not reserve eight columns of space");
+  for (const node of nodes) {
+    const box = layout.positions.get(node.id);
+    assert.ok(box.x >= 0 && box.x + box.width <= layout.width);
+    assert.ok(box.y >= 0 && box.y + box.height <= layout.height);
+  }
+  const reversed = layoutAtlas(nodes.slice().reverse());
+  assert.deepEqual([...layout.positions], [...reversed.positions]);
+  assert.equal(ATLAS_LANES.find((lane) => lane.type === "person").x, 928,
+    "compaction must not mutate the shared lane definitions");
+  const empty = layoutAtlas([]);
+  assert.deepEqual(empty.lanes, []);
+  assert.ok(Number.isFinite(empty.width) && empty.width > 0);
+});
+
+test("focus depth zero isolates the selected record and invalid depth uses one hop", () => {
+  const nodes = ["a", "b", "c"].map((id) => ({ id, type: "project", title: id }));
+  const relations = [{ id: "ab", from: "a", to: "b" }, { id: "bc", from: "b", to: "c" }];
+  for (const depth of [0, -1, "0"]) {
+    const focused = focusNeighborhood(nodes, relations, "a", depth);
+    assert.deepEqual(focused.nodes.map((node) => node.id), ["a"]);
+    assert.deepEqual(focused.relations, []);
+  }
+  assert.deepEqual(focusNeighborhood(nodes, relations, "a", "invalid").nodes.map((node) => node.id), ["a", "b"]);
+  assert.deepEqual(focusNeighborhood(nodes, relations, "a", 1.5).nodes.map((node) => node.id), ["a", "b"]);
+  assert.deepEqual(focusNeighborhood(nodes, relations, "a", 99).nodes.map((node) => node.id), ["a", "b", "c"]);
+});
+
+test("automatic focus favors distinct neighbors over parallel assertions", () => {
+  const nodes = ["a", "b", "c", "d", "e"].map((id) => ({ id, type: "project", title: id }));
+  const relations = [
+    ...Array.from({ length: 6 }, (_, i) => ({ id: `ab-${i}`, from: "a", to: "b" })),
+    { id: "cd", from: "c", to: "d" },
+    { id: "ce", from: "c", to: "e" },
+    { id: "aa", from: "a", to: "a" },
+    { id: "hidden", from: "a", to: "hidden" },
+  ];
+  assert.equal(chooseFocusNode(nodes, relations), "c");
+  assert.equal(chooseFocusNode(nodes.slice().reverse(), relations.slice().reverse()), "c");
+  assert.equal(chooseFocusNode(nodes, relations, "a"), "a");
+});
+
+test("path search keeps inspection-only assertions out and never follows legacy declarations as typed arrows", () => {
+  const at = "2026-09-12T12:00:00Z";
+  const nodes = ["a", "b", "c", "d"].map((id) => ({ id, type: "project", title: id }));
+  const relations = [
+    { id: "ab", from: "a", to: "b", semanticStatus: "typed", kind: "supports", review: "confirmed" },
+    { id: "bc-rejected", from: "b", to: "c", semanticStatus: "typed", kind: "supports", review: "rejected" },
+    { id: "bc-expired", from: "b", to: "c", semanticStatus: "typed", kind: "supports", review: "confirmed", validTo: "2025-01-01" },
+    { id: "bc-future", from: "b", to: "c", semanticStatus: "typed", kind: "supports", review: "confirmed", validFrom: "2027-01-01" },
+    { id: "bd-legacy", from: "b", to: "d", semanticStatus: "untyped", kind: "related_to",
+      declarations: [{ from: "b", to: "d" }, { from: "d", to: "b" }] },
+  ];
+  const inspected = filterRelations(relations, { at, includeRejected: true, includeOutOfValidity: true });
+  assert.equal(inspected.length, relations.length, "reviewing historical or rejected assertions must remain possible");
+  const pathOptions = { at, includeRejected: false, includeOutOfValidity: false };
+  for (const mode of ["directed", "undirected"]) {
+    assert.equal(shortestPath(nodes, inspected, "a", "c", { ...pathOptions, mode }), null,
+      "inspection filters must not make rejected, expired, or future assertions eligible for a current path");
+  }
+  assert.equal(shortestPath(nodes, inspected, "a", "d", { ...pathOptions, mode: "directed" }), null);
+  assert.equal(shortestPath(nodes, inspected, "d", "a", { ...pathOptions, mode: "directed" }), null);
+  assert.deepEqual(shortestPath(nodes, inspected, "d", "a", { ...pathOptions, mode: "undirected" }), {
+    nodeIds: ["d", "b", "a"], relationIds: ["bd-legacy", "ab"],
+  });
 });
