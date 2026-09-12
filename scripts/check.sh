@@ -44,5 +44,12 @@ done
 for test_file in "$SNAPSHOT"/tests/*.sh; do
   [ ! -f "$test_file" ] || bash "$test_file" "$SNAPSHOT"
 done
-node --test "$SNAPSHOT"/dashboard/test/*.test.mjs
-echo 'check: OK (source boundary, templates, setup, retrieval, installation, capture, dashboard)'
+(
+  # Resolve npm workspaces from the snapshot, including when TMPDIR is a symlink.
+  cd -- "$SNAPSHOT"
+  npm ci --ignore-scripts
+  npm --prefix dashboard run test:run
+  npm --prefix dashboard run build
+  node --test dashboard/test/*.test.mjs
+)
+echo 'check: OK (source boundary, templates, setup, retrieval, installation, capture, dashboard build and tests)'

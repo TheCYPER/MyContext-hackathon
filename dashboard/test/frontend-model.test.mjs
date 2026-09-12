@@ -1,15 +1,9 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { ATLAS_LANES, buildLegacyRelations, buildRelations, chooseFocusNode, filterRelations, focusNeighborhood, layoutAtlas,
   layoutFocusGraph, expandGraphNeighborhood, suggestRelatedRecords, rankWorkstreams, relationReferences, relationTrail,
-  academicContextCounts, isSyntheticDemo, relationIsCurrent, viewAvailable, shortestPath } from "../public/model.mjs";
-
-const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
-const DASHBOARD_DIR = path.resolve(TEST_DIR, "..");
+  academicContextCounts, isSyntheticDemo, relationIsCurrent, viewAvailable, shortestPath } from "../src/lib/model.mjs";
 
 test("workstream rank is derived only from projected fields", () => {
   const ranked = rankWorkstreams([
@@ -217,63 +211,7 @@ test("focus selection and shortest paths use stable graph ordering", () => {
   assert.equal(shortestPath(nodes, relations, "a", "isolated"), null);
 });
 
-test("frontend keeps projection and mobile review boundaries explicit", async () => {
-  const [app, html, css, server] = await Promise.all([
-    readFile(path.join(DASHBOARD_DIR, "public/app.js"), "utf8"),
-    readFile(path.join(DASHBOARD_DIR, "public/index.html"), "utf8"),
-    readFile(path.join(DASHBOARD_DIR, "public/styles.css"), "utf8"),
-    readFile(path.join(DASHBOARD_DIR, "server.mjs"), "utf8"),
-  ]);
 
-  assert.doesNotMatch(app, /ATLAS_POSITIONS|EDGE_LABELS|CURRENT_FOCUS/);
-  assert.doesNotMatch(app, /research_fit|worked_on|builds_on/);
-  assert.match(app, /role: "group"/);
-  assert.match(app, /aperture-frame/);
-  assert.match(app, /reason not structured/i);
-  assert.match(app, /Incoming declarations/);
-  assert.match(app, /shortestPath/);
-  assert.match(app, /layoutFocusGraph/);
-  assert.match(app, /renderViewAndFocus/);
-  assert.match(app, /data-relation-id/);
-  assert.match(app, /Revealed records/);
-  assert.match(app, /recorded connections/);
-  assert.match(app, /reverse \?/);
-  assert.match(app, /buildRelations/);
-  assert.match(app, /Follow typed arrows/);
-  assert.match(app, /frontmatter/);
-  assert.match(app, /includeOutOfValidity/);
-  assert.match(app, /sourcePath/);
-  assert.match(app, /revision_changed/);
-  assert.match(app, /bindGraphPanZoom/);
-  assert.match(app, /Find a record/);
-  assert.match(app, /experience: \(\) => renderRecordsView\("experience"\)/);
-  assert.match(app, /ideas: renderIdeasView/);
-  assert.match(app, /Research ideas/);
-  assert.match(app, /Project ideas/);
-  assert.match(app, /Project description/);
-  assert.match(app, /Advisor help/);
-  assert.match(app, /Work experiences/);
-  assert.match(app, /not finalized, signed, sent, or otherwise recorded as used/);
-  assert.match(app, /dom\.skipLink\.inert = true/);
-  assert.match(app, /setAttribute\("aria-modal", "true"\)/);
-  assert.match(html, /draft record/);
-  assert.match(html, /data-view="experience"/);
-  assert.match(html, /data-view="ideas"/);
-  assert.match(html, /data-view="runs" hidden/);
-  assert.match(app, /viewAvailable\(view, state\.snapshot\?\.capabilities\)/);
-  assert.match(app, /viewAvailable\("runs", state\.snapshot\?\.capabilities\)/);
-  assert.match(app, /dom\.demoLabel\.hidden = !isSyntheticDemo\(state\.entities\)/);
-  assert.match(html, /option value="experience"/);
-  assert.match(html, /option value="idea"/);
-  assert.match(html, /option value="journal"/);
-  assert.match(html, /tabindex="-1" aria-label="Close review margin"/);
-  assert.match(css, /\.atlas-node\.is-experience/);
-  assert.match(css, /\.atlas-node\.is-idea/);
-  assert.match(css, /\.atlas-node\.is-journal/);
-  assert.match(css, /\.aperture-edge\.is-typed/);
-  assert.match(css, /\.idea-trajectory/);
-  assert.match(server, /"\.mjs": "text\/javascript; charset=utf-8"/);
-});
 
 test("unsupported operations stay unavailable regardless of navigation entry point", () => {
   for (const capabilities of [undefined, {}, { operations: false }, { operations: "true" }]) {

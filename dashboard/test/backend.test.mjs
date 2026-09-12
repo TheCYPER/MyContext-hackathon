@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
@@ -64,7 +65,7 @@ async function rawRequest(requestPath, options = {}) {
   return new Promise((resolve, reject) => {
     const request = http.request({
       host: "127.0.0.1",
-      port,
+      port: options.port ?? port,
       method: options.method || "GET",
       path: requestPath,
       headers: options.headers,
@@ -360,6 +361,52 @@ test("static files are served from the fixed public root", async () => {
   const moduleResponse = await fetch(`${baseUrl}/model.mjs`);
   assert.equal(moduleResponse.status, 200);
   assert.match(moduleResponse.headers.get("content-type"), /^text\/javascript/);
+});
+
+test("default production root serves the built Vite application", async () => {
+  const app = await createDashboardServer({ root: fixtureRoot, projectorPath: PROJECTOR });
+  await new Promise((resolve, reject) => {
+    app.server.once("error", reject);
+    app.server.listen(0, "127.0.0.1", resolve);
+  });
+  const productionPort = app.server.address().port;
+
+  try {
+    const response = await rawRequest("/", { port: productionPort });
+    assert.equal(response.status, 200);
+    assert.match(response.body, /<div id="root"><\/div>/);
+    const themeBootstrap = response.body.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+    assert.ok(themeBootstrap, "built index contains a blocking theme bootstrap");
+    const themeHash = createHash("sha256").update(themeBootstrap).digest("base64");
+    assert.ok(response.headers["content-security-policy"].includes(`'sha256-${themeHash}'`));
+
+    const assetPath = response.body.match(/src="(\/assets\/[^\"]+\.js)"/)?.[1];
+    assert.ok(assetPath, "built index references a JavaScript asset");
+    const asset = await rawRequest(assetPath, { port: productionPort });
+    assert.equal(asset.status, 200);
+    assert.match(asset.headers["content-type"], /^text\/javascript/);
+  } finally {
+    await new Promise((resolve) => app.server.close(resolve));
+  }
+});
+
+test("server refuses a static root without an index", async () => {
+  const incompletePublicDir = path.join(fixtureRoot, "incomplete-public");
+  await mkdir(incompletePublicDir, { recursive: true });
+  await assert.rejects(
+    createDashboardServer({ root: fixtureRoot, publicDir: incompletePublicDir, projectorPath: PROJECTOR }),
+    /index\.html/,
+  );
+});
+
+test("server refuses an index whose built assets are missing", async () => {
+  const incompletePublicDir = path.join(fixtureRoot, "missing-asset-public");
+  await mkdir(incompletePublicDir, { recursive: true });
+  await writeFile(path.join(incompletePublicDir, "index.html"), '<script type="module" src="/assets/missing.js"></script>', "utf8");
+  await assert.rejects(
+    createDashboardServer({ root: fixtureRoot, publicDir: incompletePublicDir, projectorPath: PROJECTOR }),
+    /missing referenced asset: \/assets\/missing\.js/,
+  );
 });
 
 test("context selection honors explicit roots, shared configuration, and the legacy alias", async (t) => {

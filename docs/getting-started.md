@@ -9,26 +9,30 @@ the dashboard lets you browse the same committed records.
 
 ## Run the demo
 
-Requirements: **Git 2.28+, Node.js 20+, Ruby 2.6+, and a POSIX shell** on macOS,
-Linux, or WSL. The application needs no npm dependencies, Ruby gems, API keys,
-model downloads, or database services. Use your existing local AI assistant.
+Requirements: **Git 2.28+, Node.js 22.13+, Ruby 2.6+, and a POSIX shell** on macOS,
+Linux, or WSL. The dashboard uses local npm dependencies. No Ruby gems, API keys,
+model downloads, or database services are needed. Use your existing local AI assistant.
 
 ```bash
 git clone https://github.com/TheCYPER/MyContext-hackathon.git
 cd MyContext-hackathon
+npm ci
 npm run setup
 npm test
+npm run build
 npm start -- --root "$PWD/.local/demo"
 ```
 
 Open **http://127.0.0.1:4318**. If that port is occupied, run
 `npm start -- --root "$PWD/.local/demo" --port 4319` from the software directory
-instead. The server stays on localhost.
+instead. The server stays on localhost. `npm run build` creates `dashboard/dist/`
+for production; run it again after frontend changes. For frontend development
+with hot reload, use `npm run dev` and open port 5173.
 
 Setup creates `.local/demo/`, an ignored, independent Git repository with
 [67 fictional records](../examples/demo/README.md). The dashboard reads its
-committed state and checks for new commits while the page is open. A note you
-edit becomes visible after it is committed.
+committed state and checks for new commits every five seconds while the page is
+visible, and when you return to it. A note you edit becomes visible after it is committed.
 
 To try the demo with your assistant, install project-scoped Skills:
 
@@ -64,7 +68,7 @@ academic and professional context. Complete the setup and report the actual
 verification results.
 
 1. Check the current directory and installed Git, Node.js, Ruby, and shell
-   versions. Requirements are Git 2.28+, Node.js 20+, Ruby 2.6+, and a POSIX
+   versions. Requirements are Git 2.28+, Node.js 22.13+, Ruby 2.6+, and a POSIX
    shell; use WSL on Windows. If a prerequisite is missing, explain how to
    install it and obtain any required system permission. Do not inspect auth
    files or print credentials.
@@ -73,9 +77,10 @@ verification results.
    matching checkout already exists, inspect its origin and status before
    reusing it. Preserve existing work. Read the clone's README.md, AGENTS.md,
    SECURITY.md, docs/getting-started.md, and setup/install scripts. The
-   application has no npm or gem dependencies and needs no model API key.
+   dashboard uses local npm dependencies; no Ruby gems or model API key are needed.
 
-3. From the source directory, run `npm run setup` and `npm test`. Verify that
+3. From the source directory, run `npm ci`, `npm run setup`, `npm test`, and
+   `npm run build` in that order. Verify that
    `.local/demo/` is an independent Git repository with its own initial commit
    and fictional records. Diagnose any failed check without disabling it.
    Preserve an outdated or modified demo before creating a replacement.
@@ -134,7 +139,8 @@ verification results.
 
 ## Use your own context
 
-From the software directory, choose a new data directory:
+After installing dependencies and building the dashboard as above, choose a new
+data directory from the software directory:
 
 ```bash
 bash scripts/setup.sh personal "$HOME/MyContextData"
@@ -208,7 +214,7 @@ collector. See the capture guide for receipt inspection and retries.
 | --- | --- |
 | A prerequisite is missing | Install the reported Git, Node.js, or Ruby version, then rerun setup. |
 | Port 4318 is occupied | Keep the selected `--root` and add `--port 4319` or another unused port to the start command. |
-| An edited note is absent from the dashboard | Check that the intended context is selected and the change is committed. Use **Refresh**. |
+| An edited note is absent from the dashboard | Check that the intended context is selected and the change is committed. Keep the page visible for the next five-second update, or return to it to trigger a check. |
 | A Skill cannot resolve a library | Set an explicit `MY_CONTEXT_ROOT` or check the global binding with the capture `status` command. |
 | An idea is missing from search | Use `--include-drafts`; draft ideas are excluded by default. |
 | Capture says “queued” | The candidate awaits review. Inspect its receipt and the library's capture policy before expecting a journal entry. |

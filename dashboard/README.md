@@ -6,12 +6,19 @@ context repository; your AI assistant uses those same records during a task.
 
 ![Connected academic and professional context](../docs/assets/screenshots/graph.png)
 
+This screenshot shows the earlier layout; the current dashboard uses the React
+and shadcn interface described below.
+
 ## Run locally
 
-From the software directory, create the fictional demo and start the dashboard:
+Requirements: Node.js 22.13+, Ruby 2.6+ with Psych, Git 2.28+, and a POSIX shell.
+From the software directory, install dependencies, create the fictional demo,
+and build and start the dashboard:
 
 ```bash
+npm ci
 npm run setup
+npm run build
 npm start -- --root "$PWD/.local/demo"
 ```
 
@@ -29,32 +36,34 @@ An explicit `--root` takes precedence over `MY_CONTEXT_ROOT`, then the older
 to the software checkout. `--port` overrides `MYCONTEXT_MARGIN_PORT` and the
 default port 4318. The server binds to `127.0.0.1`.
 
+For frontend development, run `npm run dev` and open **http://127.0.0.1:5173**.
+Vite provides hot reload and proxies the local API. Light, dark, and system theme
+preferences are saved locally in the browser.
+
 ## Explore the graph
 
-1. Use **Find a record** to choose a project, experience, idea, person, or work
-   note by its title, ID, or type. Start with one or two hops around it.
-2. Use **Grow connections +** to reveal another layer, or **Expand connections +**
-   for an individual record. Existing visible records remain visible.
-3. Select an assertion in **Connected records** to inspect its meaning, source,
-   evidence, and review state. Parallel assertions remain individually accessible.
-4. Open **Filters** to select predicates, review states, evidence availability,
-   and current validity. The summary reports the active filters and visible count.
-5. Expand **Find a path**, select a destination, and choose directed typed
-   relations or navigation across visible connections. The complete selected path
-   is retained, including steps beyond two hops.
+1. Open a record in the graph, or expand **Global overview** and select a record
+   to focus it. Choose **1 hop** or **Expand to 2** around the focused record.
+2. Click another record to focus it; click the focused record to inspect its
+   details. Select an edge marker to inspect its declaration, source, evidence,
+   and review state. Parallel assertions remain individually accessible.
+3. Use the **Predicate**, **Review**, and **Evidence** selectors above the graph.
+   **Include rejected** and **Include outside validity** reveal those assertions
+   for inspection.
+4. Select a **Connection target**, choose **Trace mode**, and press **Trace**.
+   Directed mode follows typed arrows; undirected mode navigates visible
+   connections in either direction. Every record and edge in the selected path
+   remains visible, including steps beyond two hops.
+5. Click a record in the path to refocus without losing the path. **Clear path**
+   returns to the current neighborhood. Changing filters or trace mode clears the
+   old path so the next trace uses the new selection.
 
-The graph starts with a 200-record display limit, expandable in batches of 100.
-Every recorded edge between visible nodes is included. **Needs you** opens the
-review drawer while preserving your place in the graph.
-
-| Navigation | Control |
-| --- | --- |
-| Pan | Drag the canvas, or use arrow keys while it has focus |
-| Zoom | Buttons, `+` / `-`, or Ctrl/Cmd + wheel |
-| Center the graph | **Fit**, `0`, or Home |
-| Return to one hop | **Reset view**; keeps the current filters |
-| Choose a search result | Click, or Arrow Up/Down then Enter |
-| Close the review drawer | Escape; focus returns to its button |
+The focused neighborhood has a 200-record display limit; selected path records
+are retained even beyond that limit. Every recorded edge between visible nodes
+is included. The canvas scrolls when it exceeds the available space, and record
+and edge controls support Enter or Space for keyboard activation.
+**Needs you** opens the review drawer while exploring the graph. Escape closes
+it and returns focus to its button.
 
 ## Understand the connections
 
@@ -74,13 +83,15 @@ Paths describe recorded connectivity. They omit rejected assertions and assertio
 outside their validity window, even if inspection filters display those edges.
 Following several links does not establish a new fact about their endpoints.
 
-## Automatic growth and link review
+## Automatic updates
 
-The page checks for new committed context every five seconds while visible.
-**Refresh** checks immediately; **Live updates** can pause automatic checks.
-Updates preserve focus, filters, expanded records, selected paths, and unfinished
-search text. The status line reports additions and removals, and new nodes receive
-an outline. A failed refresh displays a stale-revision notice with a retry action.
+The page checks for new committed context every five seconds while visible,
+and when the tab becomes visible or the window regains focus. Checks that find
+an unchanged revision preserve the current graph and open details. A new revision
+preserves valid focus and filters, clears old traces and relation selections, and
+removes targets that are no longer available. If the focused record disappears,
+the graph chooses another visible record. A failed refresh keeps the last loaded
+revision visible with an error notice and retries on subsequent checks.
 
 New `context:<id>` source references connect when both records are available.
 References to missing, restricted, removed, or ambiguous records are excluded;
@@ -88,16 +99,8 @@ missing targets can connect after they are committed. Duplicate and self
 references are ignored. Projection diagnostics report unresolved or excluded
 references as `unavailableSourceReference`.
 
-**Possible connections** suggests currently unlinked records with exact shared
-tags or at least two common neighbors. Rejected and expired assertions do not
-support suggestions; records with an existing assertion are not proposed as new
-links. Each suggestion explains its basis.
-**Prepare link for review** copies a navigation-link proposal to use with your
-assistant, including when a selected destination has no path. Apply it through
-your library's review process, preserving existing fields and links.
-
-Suggestions are kept separate from recorded edges. The dashboard remains
-read-only; approved changes become visible after they are committed.
+The dashboard remains read-only; approved changes become visible after they are
+committed to the context repository.
 
 ## Records and privacy
 
@@ -108,7 +111,7 @@ read-only; approved changes become visible after they are committed.
   are updated through review.
 - `restricted` records and `sources/session-exports/` are excluded. Both `public`
   and `private` records can appear in this local view. Live refresh removes records
-  that become restricted or are deleted and closes their open details.
+  that become restricted or are deleted and clears their previously loaded details.
 - A typed edge uses the strictest privacy of the assertion, its endpoints, and
   canonical source records. Missing or excluded source records exclude the edge.
 - Drafts remain material for review. The dashboard has no approval, writing,
@@ -159,6 +162,7 @@ records remain excluded.
 
 ## Test
 
-Run `npm --prefix dashboard test` from the software directory. Tests use fictional
-temporary Git repositories and an available local port. The complete application
-check is `npm test`.
+Run `npm --prefix dashboard run test:run` from the software directory for component
+tests. The complete application check is `npm test`; it includes the production
+build, frontend model tests, and backend tests. Backend tests use fictional
+temporary Git repositories and an available local port.

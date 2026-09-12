@@ -1,9 +1,10 @@
 # Contributing to MyContext
 
-Clone this repository, then run `npm run setup`, `npm test`, and `npm start`.
-The implementation uses Node.js 20+, Ruby 2.6+, Git 2.28+, and a POSIX shell
-(macOS, Linux, or WSL). It has no npm or Ruby gem dependencies. Setup checks
-prerequisites; it does not install system packages.
+Clone this repository, then run `npm ci`, `npm run setup`, `npm test`,
+`npm run build`, and `npm start`.
+The implementation uses Node.js 22.13+, Ruby 2.6+, Git 2.28+, and a POSIX shell
+(macOS, Linux, or WSL). The dashboard uses npm frontend dependencies; no Ruby
+gems are needed. Setup checks prerequisites; it does not install system packages.
 
 ## Work areas
 
@@ -22,7 +23,10 @@ development separate from personal context repositories.
 
 `npm test` checks the public file boundary and known secret patterns, validates
 the demo and blank scaffold, and runs retrieval, setup, installation, capture, and dashboard
-tests with disposable synthetic repositories. `scripts/check.sh --staged` checks
+tests with disposable synthetic repositories. It also installs the locked frontend
+dependencies, runs component tests, and builds the dashboard in a temporary source
+snapshot. Run `npm run build` to create `dashboard/dist/` in your own checkout before
+starting the production server. `scripts/check.sh --staged` checks
 the actual staged snapshot before publication. No test needs personal files or an
 AI account. These checks are regression tests, not a guarantee that arbitrary
 prose contains no personal information; manually review every release diff.

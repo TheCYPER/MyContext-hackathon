@@ -1,0 +1,222 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-signal: var(--signal);
+  --color-signal-foreground: var(--signal-foreground);
+  --color-notice: var(--notice);
+  --color-palette-green: #52796f;
+  --color-palette-cream: #f6e9c3;
+  --color-palette-terracotta: #c45d44;
+  --color-palette-black: #191919;
+}
+
+:root {
+  --background: #f6e9c3;
+  --foreground: #191919;
+  --card: #f6e9c3;
+  --card-foreground: var(--foreground);
+  --popover: #f6e9c3;
+  --popover-foreground: var(--foreground);
+  --primary: #52796f;
+  --primary-foreground: #191919;
+  --secondary: #f6e9c3;
+  --secondary-foreground: #191919;
+  --muted: #f6e9c3;
+  --muted-foreground: #191919;
+  --accent: #191919;
+  --accent-foreground: #f6e9c3;
+  --border: #191919;
+  --input: var(--border);
+  --ring: #52796f;
+  --signal: #c45d44;
+  --signal-foreground: #191919;
+  --notice: #f6e9c3;
+  --shadow-card: 5px 5px 0 rgb(25 25 25 / 14%);
+  --shadow-active-card: 5px 5px 0 rgb(82 121 111 / 32%);
+  --shadow-draft-card: 5px 5px 0 rgb(196 93 68 / 28%);
+  --shadow-archived-card: 4px 4px 0 rgb(25 25 25 / 16%);
+  font-family:
+    "IBM Plex Sans", "Helvetica Neue", Arial, ui-sans-serif, system-ui,
+    sans-serif;
+  color: var(--foreground);
+  background: var(--background);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark {
+  --background: #191919;
+  --foreground: #f6e9c3;
+  --card: #191919;
+  --card-foreground: var(--foreground);
+  --popover: #191919;
+  --popover-foreground: var(--foreground);
+  --primary: #52796f;
+  --primary-foreground: #f6e9c3;
+  --secondary: #191919;
+  --secondary-foreground: #f6e9c3;
+  --muted: #191919;
+  --muted-foreground: #f6e9c3;
+  --accent: #f6e9c3;
+  --accent-foreground: #191919;
+  --border: #f6e9c3;
+  --input: var(--border);
+  --ring: #c45d44;
+  --signal: #c45d44;
+  --signal-foreground: #191919;
+  --notice: #191919;
+  --shadow-card: 5px 5px 0 rgb(246 233 195 / 16%);
+  --shadow-active-card: 5px 5px 0 rgb(82 121 111 / 48%);
+  --shadow-draft-card: 5px 5px 0 rgb(196 93 68 / 44%);
+  --shadow-archived-card: 4px 4px 0 rgb(246 233 195 / 18%);
+}
+
+* {
+  box-sizing: border-box;
+  border-radius: 0 !important;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+:root {
+  --graph-background: #f6e9c3;
+  --graph-edge: #191919;
+  --graph-edge-path: #c45d44;
+  --graph-node: #f6e9c3;
+  --graph-node-stroke: #191919;
+  --graph-node-focus: #f6e9c3;
+  --graph-text: #191919;
+  --graph-muted: #191919;
+}
+
+.dark {
+  --graph-background: #191919;
+  --graph-edge: #f6e9c3;
+  --graph-edge-path: #c45d44;
+  --graph-node: #191919;
+  --graph-node-stroke: #f6e9c3;
+  --graph-node-focus: #191919;
+  --graph-text: #f6e9c3;
+  --graph-muted: #f6e9c3;
+}
+
+.graph-edge {
+  stroke: var(--graph-edge);
+  stroke-width: 1.5;
+  opacity: 0.58;
+}
+.graph-edge-path {
+  stroke: var(--graph-edge-path);
+  stroke-width: 3;
+}
+.graph-edge-global {
+  opacity: 0.28;
+}
+.graph-node {
+  cursor: pointer;
+  outline: none;
+}
+.graph-node rect {
+  rx: 0;
+  fill: var(--graph-node);
+  stroke: var(--graph-node-stroke);
+  stroke-width: 1.5;
+  transition:
+    stroke 150ms ease,
+    fill 150ms ease;
+}
+.graph-node:hover rect,
+.graph-node:focus-visible rect {
+  stroke: var(--graph-edge-path);
+  stroke-width: 2.5;
+}
+.graph-node-focus rect {
+  fill: var(--graph-node-focus);
+  stroke: var(--graph-edge-path);
+  stroke-width: 2.5;
+}
+.graph-node-path rect {
+  stroke: var(--graph-edge-path);
+  stroke-width: 3;
+}
+.graph-node-title {
+  fill: var(--graph-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.graph-node-meta {
+  fill: var(--graph-muted);
+  font-size: 10px;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+.graph-relation-control {
+  cursor: pointer;
+  outline: none;
+}
+.graph-relation-control circle {
+  fill: var(--graph-node);
+  stroke: var(--graph-edge-path);
+  stroke-width: 2;
+}
+.graph-relation-control text {
+  fill: var(--graph-edge-path);
+  font-size: 9px;
+}
+.graph-relation-control:focus-visible circle {
+  stroke-width: 4;
+}
+.graph-lane-title {
+  fill: var(--graph-muted);
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.72;
+  text-transform: uppercase;
+}
+.graph-lane-line {
+  stroke: var(--graph-node-stroke);
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}

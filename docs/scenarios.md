@@ -7,6 +7,8 @@ The outputs below illustrate what the recorded context supports.
 
 ![A project and its supporting context in the MyContext demo](assets/screenshots/project.png)
 
+*Screenshot from the demo before the frontend redesign.*
+
 ## Research checkpoint
 
 You are returning to an experiment before a lab meeting. Its earlier result

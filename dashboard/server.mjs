@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFile as execFileCallback } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { realpath, stat } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -9,13 +9,13 @@ import { fileURLToPath } from "node:url";
 const execFile = promisify(execFileCallback);
 const THIS_FILE = fileURLToPath(import.meta.url);
 const DASHBOARD_DIR = path.dirname(THIS_FILE);
-const DEFAULT_PUBLIC_DIR = path.join(DASHBOARD_DIR, "public");
+const DEFAULT_PUBLIC_DIR = path.join(DASHBOARD_DIR, "dist");
 const DEFAULT_PROJECTOR = path.join(DASHBOARD_DIR, "projector.rb");
 const DEFAULT_ROOT = path.join(path.dirname(DASHBOARD_DIR), ".local", "demo");
 const BIND_HOST = "127.0.0.1";
 const ENTITY_ID = /^[a-z0-9][a-z0-9._-]*$/;
 const SECURITY_HEADERS = Object.freeze({
-  "Content-Security-Policy": ["default-src 'self'", "script-src 'self'", "style-src 'self'",
+  "Content-Security-Policy": ["default-src 'self'", "script-src 'self' 'sha256-Zasv/aOoBR8TwFNOiZyuteFHa/R7m/fwgKrVOPQcWMI='", "style-src 'self'",
     "img-src 'self' data:", "connect-src 'self'", "object-src 'none'", "base-uri 'none'",
     "frame-ancestors 'none'", "form-action 'self'"].join("; "),
   "Cross-Origin-Opener-Policy": "same-origin",
@@ -188,6 +188,18 @@ async function serveStatic(response, publicDir, pathname, headOnly) {
   });
   stream.pipe(response);
 }
+async function validateStaticEntry(publicDir) {
+  const index = await resolveStaticFile(publicDir, "/");
+  if (!index) throw new Error("Dashboard static root is missing a readable index.html");
+  const html = await readFile(index.path, "utf8");
+  const assetPaths = [...html.matchAll(/(?:src|href)="(\/assets\/[A-Za-z0-9._/-]+)"/g)]
+    .map((match) => match[1]);
+  for (const assetPath of assetPaths) {
+    if (!await resolveStaticFile(publicDir, assetPath)) {
+      throw new Error(`Dashboard build is missing referenced asset: ${assetPath}`);
+    }
+  }
+}
 function parseEntityId(pathname) {
   const prefix = "/api/v1/entities/";
   if (!pathname.startsWith(prefix)) return null;
@@ -202,7 +214,16 @@ function parseEntityId(pathname) {
 }
 export async function createDashboardServer(options = {}) {
   const root = await resolveRepository(options.root || process.env.MY_CONTEXT_ROOT || process.env.MYCONTEXT_ROOT || DEFAULT_ROOT);
-  const publicDir = await realpath(options.publicDir || DEFAULT_PUBLIC_DIR);
+  let publicDir;
+  try {
+    publicDir = await realpath(options.publicDir || DEFAULT_PUBLIC_DIR);
+  } catch (error) {
+    if (!options.publicDir && error.code === "ENOENT") {
+      throw new Error("Dashboard build is missing. Run: npm run build");
+    }
+    throw error;
+  }
+  await validateStaticEntry(publicDir);
   const projectorPath = await realpath(options.projectorPath || DEFAULT_PROJECTOR);
   const loadProjection = await createProjectionLoader({ root, projectorPath,
     ruby: options.ruby || process.env.MYCONTEXT_RUBY || "ruby" });

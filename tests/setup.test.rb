@@ -162,19 +162,32 @@ class ContextSetupTest < Minitest::Test
   end
 
   def test_old_prerequisites_fail_before_creating_data
-    %w[git node].each do |tool|
-      fake_bin = File.join(@temporary, "old-#{tool}-bin")
+    [["git", "git version 2.27.0"], ["node", "v18.20.0"],
+      ["node", "v20.19.0"], ["node", "v22.12.0"]].each_with_index do |(tool, reported), index|
+      fake_bin = File.join(@temporary, "old-#{tool}-#{index}-bin")
       FileUtils.mkdir_p(fake_bin)
-      reported = tool == "git" ? "git version 2.27.0" : "v18.20.0"
       executable = File.join(fake_bin, tool)
       File.write(executable, "#!/bin/sh\nprintf '%s\\n' '#{reported}'\n")
       File.chmod(0o755, executable)
-      destination = File.join(@temporary, "blocked-#{tool}")
+      destination = File.join(@temporary, "blocked-#{tool}-#{index}")
       output, error, status = Open3.capture3({ "PATH" => fake_bin + File::PATH_SEPARATOR + ENV.fetch("PATH") },
         "bash", File.join(@source, "scripts", "setup.sh"), "personal", destination)
       refute status.success?, output
       assert_match(/is required/, error)
       refute File.exist?(destination), "failed prerequisites must not create context data"
     end
+  end
+
+  def test_minimum_node_version_can_create_context
+    fake_bin = File.join(@temporary, "minimum-node-bin")
+    FileUtils.mkdir_p(fake_bin)
+    executable = File.join(fake_bin, "node")
+    File.write(executable, "#!/bin/sh\nprintf '%s\\n' 'v22.13.0'\n")
+    File.chmod(0o755, executable)
+    destination = File.join(@temporary, "minimum-node-context")
+    output, error, status = Open3.capture3({ "PATH" => fake_bin + File::PATH_SEPARATOR + ENV.fetch("PATH") },
+      "bash", File.join(@source, "scripts", "setup.sh"), "personal", destination)
+    assert status.success?, "#{output}\n#{error}"
+    assert File.directory?(File.join(destination, ".git"))
   end
 end

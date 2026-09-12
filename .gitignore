@@ -16,9 +16,14 @@
 /.claude/
 /.codex/
 /.gstack/
+/.worktrees/
 .DS_Store
 node_modules/
+dashboard/dist/
+*.tsbuildinfo
 coverage/
+design-qa.md
+design-qa-*.png
 *.log
 *.swp
 *.tmp

@@ -22,7 +22,8 @@ questions.
 ![The MyContext demo overview, with academic record counts and drafts awaiting review.](docs/assets/screenshots/overview.png)
 
 *The demo follows Alex Lin, a fictional computer science student. All people,
-institutions, experiences and results in its 67 linked records are invented.*
+institutions, experiences and results in its 67 linked records are invented.
+Dashboard screenshots show the demo before the frontend redesign.*
 
 ## Four ways to use it
 
@@ -57,32 +58,40 @@ handles retrieval and proposed updates.
 
 Start from a project, person or idea and explore its neighborhood. Typed
 relationships can explain who participates in a project, which note supports a
-claim, or what supersedes an earlier result. Open an edge to inspect its evidence;
-expand the graph to continue exploring.
+claim, or what supersedes an earlier result. Open an edge to inspect its evidence.
+Start with **1 hop**, then use **Expand to 2** to reveal nearby records. Choose a
+**Connection target** and select **Trace** to inspect a recorded path.
 
 ![The demo graph connects a research project with its collaborators, ideas and supporting records.](docs/assets/screenshots/graph.png)
 
+*Graph screenshot from the demo before the frontend redesign.*
+
 Generic links help you navigate. Typed relationships carry recorded meaning.
-Suggested connections remain suggestions until reviewed. The graph refreshes when
-new context is committed, while keeping your current focus.
+The dashboard checks for new commits every five seconds while visible, preserving
+your current focus when that record remains available.
 
 [Graph controls and queries →](dashboard/README.md)
 
 ## Get started
 
-Requires **Git 2.28+, Node.js 20+, Ruby 2.6+** and a POSIX shell (macOS, Linux or WSL).
-The application has no npm or Ruby gem dependencies and needs no API key.
+Requires **Git 2.28+, Node.js 22.13+, Ruby 2.6+** and a POSIX shell (macOS, Linux or WSL).
+The dashboard uses local npm dependencies. No Ruby gems or API key are needed.
 
 ```bash
 git clone https://github.com/TheCYPER/MyContext-hackathon.git
 cd MyContext-hackathon
+npm ci
 npm run setup
 npm test
+npm run build
 npm start -- --root "$PWD/.local/demo"
 ```
 
 Open **http://127.0.0.1:4318**. Setup creates an independent fictional demo in
 `.local/demo/`. If the port is occupied, use `npm start -- --root "$PWD/.local/demo" --port 4319`.
+
+The build creates `dashboard/dist/` for the production server. For frontend
+development with hot reload, run `npm run dev` and open port 5173.
 
 Prefer to have your AI set it up? Copy the
 [complete installation prompt](docs/getting-started.md#install-with-your-ai). It
