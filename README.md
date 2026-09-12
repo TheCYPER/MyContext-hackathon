@@ -273,6 +273,12 @@ There is no built-in hosted AI service, vector index, graph database, inbox
 integration, message sending, automatic transcript collection, or automatic
 personal-data synchronization. AI-assisted actions use the assistant you choose.
 
+The graph now watches committed context while the page is open. **Grow
+connections +** progressively reveals connected records; full paths extend beyond
+two hops. **Possible connections** explains suggestions from shared tags or
+neighbors, with copyable proposals for owner review before links are saved.
+See [dashboard behavior](dashboard/README.md#automatic-growth-and-link-review).
+
 ## Why a Librarian? Is this a knowledge graph?
 
 At a small-library scale, better routing and ranking are a useful first step:
@@ -282,8 +288,10 @@ The Librarian Skill uses that workflow without requiring another agent service.
 Lexical search is still sensitive to wording; it is not a measured semantic-search
 benchmark or a guarantee that every relevant note is found.
 
-The graph projects two deliberately different kinds of connection. Existing
-`links` remain untyped `related_to` connections. Curated frontmatter `relations`
+The graph projects typed assertions and untyped navigation connections. Existing
+`links` remain untyped `related_to` connections. Exact record-level
+`context:<id>` source locators also create separate, untyped recorded references,
+so new captured context can connect without duplicating links manually. Curated frontmatter `relations`
 are directed assertions with a predicate, target, evidence class, source locators,
 review state, privacy, and optional validity dates and note. The supported
 predicates are `participates_in`, `part_of`, `about`, `motivated_by`, `supports`,

@@ -114,12 +114,18 @@ export function buildRelations(entities, projectedEdges = []) {
   const visibleIds = new Set(array(entities).map((entity) => entity?.id).filter(Boolean));
   const typed = [];
   const projectedLegacy = [];
+  const sourceReferences = [];
 
   for (const edge of array(projectedEdges)) {
     if (!edge?.id || !visibleIds.has(edge.from) || !visibleIds.has(edge.to) || edge.from === edge.to) continue;
     const isTyped = edge.semanticStatus === "typed" || TYPED_RELATION_KINDS.includes(edge.kind);
     if (!isTyped) {
-      projectedLegacy.push(edge);
+      if (edge.provenance === "frontmatter.sources") sourceReferences.push({
+        ...edge, semanticStatus: "untyped", kind: "related_to",
+        evidence: LEGACY_RELATION_BOUNDARY.evidence, review: LEGACY_RELATION_BOUNDARY.review,
+        sources: array(edge.sources), declarations: [{ from: edge.from, to: edge.to }],
+      });
+      else projectedLegacy.push(edge);
       continue;
     }
     if (!TYPED_RELATION_KINDS.includes(edge.kind)) continue;
@@ -136,7 +142,7 @@ export function buildRelations(entities, projectedEdges = []) {
     });
   }
 
-  return [...buildLegacyRelations(entities, projectedLegacy), ...typed].sort(compareRelations);
+  return [...buildLegacyRelations(entities, projectedLegacy), ...sourceReferences, ...typed].sort(compareRelations);
 }
 
 export function relationIsCurrent(relation, at = new Date()) {
@@ -205,7 +211,7 @@ export function relationTrail(relations, entityId) {
     compareRelations(left.relation, right.relation));
 }
 
-export function focusNeighborhood(nodes, relations, focusId, depth = 1) {
+export function focusNeighborhood(nodes, relations, focusId, depth = 1, options = {}) {
   const visibleNodes = array(nodes).filter((node) => node?.id);
   const nodeById = new Map(visibleNodes.map((node) => [node.id, node]));
   if (!nodeById.has(focusId)) return { nodes: [], relations: [], distances: new Map() };
@@ -224,13 +230,12 @@ export function focusNeighborhood(nodes, relations, focusId, depth = 1) {
 
   const numericDepth = Number(depth);
   const boundedDepth = Number.isFinite(numericDepth)
-    ? Math.max(0, Math.min(2, Math.floor(numericDepth))) : 1;
+    ? Math.max(0, Math.min(visibleNodes.length, Math.floor(numericDepth))) : 1;
   const distances = new Map([[focusId, 0]]);
   const queue = [focusId];
   for (let cursor = 0; cursor < queue.length; cursor += 1) {
     const current = queue[cursor];
     const currentDistance = distances.get(current);
-    if (currentDistance >= boundedDepth) continue;
     for (const neighbor of adjacency.get(current)) {
       if (distances.has(neighbor.id)) continue;
       distances.set(neighbor.id, currentDistance + 1);
@@ -238,18 +243,27 @@ export function focusNeighborhood(nodes, relations, focusId, depth = 1) {
     }
   }
 
-  const included = new Set(distances.keys());
+  const candidates = visibleNodes.filter((node) => distances.has(node.id) && distances.get(node.id) <= boundedDepth).sort((left, right) =>
+    distances.get(left.id) - distances.get(right.id) || compareNodes(left, right));
+  const retained = [...new Set([focusId, ...array(options.retainIds)])].filter((id) => nodeById.has(id));
+  const limit = graphNodeLimit(options.maxNodes, retained.length);
+  const included = new Set(retained);
+  for (const node of candidates) {
+    if (included.size >= limit) break;
+    included.add(node.id);
+  }
+  for (const id of retained) if (!distances.has(id)) distances.set(id, null);
+  const selectedNodes = visibleNodes.filter((node) => included.has(node.id)).sort((left, right) =>
+    (distances.get(left.id) ?? Infinity) - (distances.get(right.id) ?? Infinity) || compareNodes(left, right));
   return {
-    nodes: visibleNodes.filter((node) => included.has(node.id)).sort((left, right) =>
-      distances.get(left.id) - distances.get(right.id) || compareNodes(left, right)),
-    // The aperture shows links that cross from one BFS ring to the next. Links
-    // within the same ring remain available in the global overview; drawing
-    // them here would turn a focused neighborhood into a misleading hairball.
-    relations: validRelations.filter((relation) => included.has(relation.from) &&
-      included.has(relation.to) &&
-      Math.abs(distances.get(relation.from) - distances.get(relation.to)) === 1)
+    nodes: selectedNodes,
+    // Every recorded connection between visible records remains inspectable,
+    // including same-ring, reverse, and parallel assertions.
+    relations: validRelations.filter((relation) => included.has(relation.from) && included.has(relation.to))
       .sort(compareRelations),
-    distances,
+    distances: new Map(selectedNodes.map((node) => [node.id, distances.get(node.id)])),
+    hiddenNodeCount: candidates.filter((node) => !included.has(node.id)).length,
+    frontierIds: [...included].filter((id) => adjacency.get(id).some((neighbor) => !included.has(neighbor.id))).sort(),
   };
 }
 
@@ -313,53 +327,102 @@ export function shortestPath(nodes, relations, startId, targetId, options = {}) 
   return { nodeIds: nodeIdsInPath.reverse(), relationIds: relationIds.reverse() };
 }
 
-export function layoutFocusGraph(nodes, relations, focusId, depth = 1) {
-  const neighborhood = focusNeighborhood(nodes, relations, focusId, depth);
-  const firstRingCount = neighborhood.nodes.filter((node) =>
-    neighborhood.distances.get(node.id) === 1).length;
-  const secondRingCount = neighborhood.nodes.filter((node) =>
-    neighborhood.distances.get(node.id) === 2).length;
-  const expanded = secondRingCount > 0;
-  // Preserve the original layout for small neighborhoods; give denser rings
-  // enough circumference for their labels and keep the outer ring clear.
-  const innerRadiusX = Math.max(expanded ? 360 : 310,
-    firstRingCount > 10 ? firstRingCount * 170 * 1.5 / (2 * Math.PI) : 0);
-  const innerRadiusY = Math.max(expanded ? 240 : 215,
-    firstRingCount > 10 ? firstRingCount * 64 * 1.5 / (2 * Math.PI) : 0);
-  const outerRadiusX = Math.max(570, innerRadiusX + 210,
-    secondRingCount * 150 * 1.5 / (2 * Math.PI));
-  const outerRadiusY = Math.max(350, innerRadiusY + 110,
-    secondRingCount * 64 * 1.5 / (2 * Math.PI));
-  const width = expanded ? Math.max(1420, 1180 + secondRingCount * 30, outerRadiusX * 2 + 220)
-    : Math.max(1100, innerRadiusX * 2 + 220);
-  const height = expanded ? Math.max(900, 760 + secondRingCount * 18, outerRadiusY * 2 + 160)
-    : Math.max(680, innerRadiusY * 2 + 160);
-  const center = { x: width / 2, y: height / 2 };
-  const positions = new Map();
-  const focus = neighborhood.nodes.find((node) => node.id === focusId);
-  if (!focus) return { ...neighborhood, positions, width, height };
+function graphNodeLimit(value, retainedCount = 0) {
+  const numeric = Number(value ?? 200);
+  return Math.max(retainedCount, Number.isFinite(numeric) ? Math.max(1, Math.floor(numeric)) : 200);
+}
 
-  positions.set(focusId, { x: center.x - 110, y: center.y - 39, width: 220, height: 78 });
-  for (const ring of [1, 2]) {
-    const ringNodes = neighborhood.nodes.filter((node) => neighborhood.distances.get(node.id) === ring)
-      .sort(compareNodes);
-    const radiusX = ring === 1 ? innerRadiusX : outerRadiusX;
-    const radiusY = ring === 1 ? innerRadiusY : outerRadiusY;
-    const nodeWidth = ring === 1 ? 170 : 150;
-    const nodeHeight = 64;
-    const phase = ring === 2 && ringNodes.length > 1 ? Math.PI / ringNodes.length : 0;
-    ringNodes.forEach((node, index) => {
-      const angle = -Math.PI / 2 + phase +
-        (Math.PI * 2 * index) / Math.max(1, ringNodes.length);
-      positions.set(node.id, {
-        x: center.x + Math.cos(angle) * radiusX - nodeWidth / 2,
-        y: center.y + Math.sin(angle) * radiusY - nodeHeight / 2,
-        width: nodeWidth,
-        height: nodeHeight,
-      });
-    });
+/** Reveal one frontier of explicit connections; never synthesize edges. */
+export function expandGraphNeighborhood(nodes, relations, visibleIds, options = {}) {
+  const nodeById = new Map(array(nodes).filter((node) => node?.id).map((node) => [node.id, node]));
+  const included = new Set([...array(visibleIds), ...array(options.retainIds)].filter((id) => nodeById.has(id)));
+  const fromIds = new Set(array(options.fromIds ?? [...included]).filter((id) => included.has(id)));
+  const candidates = new Set();
+  const validRelations = array(relations).filter((edge) => nodeById.has(edge?.from) && nodeById.has(edge?.to));
+  for (const edge of validRelations) {
+    if (fromIds.has(edge.from) && !included.has(edge.to)) candidates.add(edge.to);
+    if (fromIds.has(edge.to) && !included.has(edge.from)) candidates.add(edge.from);
   }
+  const ordered = [...candidates].sort((a, b) => compareNodes(nodeById.get(a), nodeById.get(b)));
+  const limit = graphNodeLimit(options.maxNodes, included.size);
+  const addedIds = ordered.slice(0, Math.max(0, limit - included.size));
+  for (const id of addedIds) included.add(id);
+  const frontier = new Set();
+  for (const edge of validRelations) {
+    if (included.has(edge.from) && !included.has(edge.to)) frontier.add(edge.from);
+    if (included.has(edge.to) && !included.has(edge.from)) frontier.add(edge.to);
+  }
+  return { nodeIds: [...included], addedIds, frontierIds: [...frontier].sort(),
+    hiddenNodeCount: ordered.length - addedIds.length };
+}
+
+export function layoutFocusGraph(nodes, relations, focusId, depth = 1, options = {}) {
+  const neighborhood = focusNeighborhood(nodes, relations, focusId, depth, options);
+  const rings = new Map();
+  const retainedRing = Math.max(0, ...neighborhood.distances.values()) + 1;
+  for (const node of neighborhood.nodes) {
+    const ring = neighborhood.distances.get(node.id) ?? retainedRing;
+    if (ring === 0) continue;
+    if (!rings.has(ring)) rings.set(ring, []);
+    rings.get(ring).push(node);
+  }
+  const relativePositions = new Map();
+  if (neighborhood.nodes.some((node) => node.id === focusId)) {
+    relativePositions.set(focusId, { x: -110, y: -39, width: 220, height: 78 });
+  }
+  let radiusX = 90;
+  const overlaps = (left, right) => left.x < right.x + right.width + 12 &&
+    left.x + left.width + 12 > right.x && left.y < right.y + right.height + 12 &&
+    left.y + left.height + 12 > right.y;
+  for (const [, ringNodes] of [...rings].sort((a, b) => a[0] - b[0])) {
+    ringNodes.sort(compareNodes);
+    radiusX += 220;
+    let boxes;
+    // Cards are wider than they are tall. Fit elliptical rings to the actual
+    // rectangles instead of reserving circular diagonal clearance everywhere.
+    // The deterministic collision check includes all earlier rings and a gutter.
+    do {
+      boxes = ringNodes.map((node, index) => {
+        const angle = -Math.PI / 2 + Math.PI * 2 * index / ringNodes.length;
+        return { id: node.id, x: Math.cos(angle) * radiusX - 85,
+          y: Math.sin(angle) * radiusX / 1.8 - 32, width: 170, height: 64 };
+      });
+      const previous = [...relativePositions.values()];
+      const collision = boxes.some((box, index) => previous.some((other) => overlaps(box, other)) ||
+        boxes.slice(0, index).some((other) => overlaps(box, other)));
+      if (!collision) break;
+      radiusX *= 1.04;
+    } while (true);
+    for (const { id, ...box } of boxes) relativePositions.set(id, box);
+  }
+  const extentX = Math.max(0, ...[...relativePositions.values()].flatMap((box) => [Math.abs(box.x), Math.abs(box.x + box.width)]));
+  const extentY = Math.max(0, ...[...relativePositions.values()].flatMap((box) => [Math.abs(box.y), Math.abs(box.y + box.height)]));
+  const width = Math.max(1100, extentX * 2 + 80);
+  const height = Math.max(600, extentY * 2 + 80);
+  const positions = new Map([...relativePositions].map(([id, box]) =>
+    [id, { ...box, x: box.x + width / 2, y: box.y + height / 2 }]));
   return { ...neighborhood, positions, width, height };
+}
+
+/** Potential navigation leads, kept separate from recorded graph connections. */
+export function suggestRelatedRecords(nodes, relations, focusId, options = {}) {
+  const nodeById = new Map(array(nodes).filter((node) => node?.id).map((node) => [node.id, node]));
+  const focus = nodeById.get(focusId);
+  if (!focus) return [];
+  const neighbors = new Map([...nodeById.keys()].map((id) => [id, new Set()]));
+  for (const edge of array(relations)) {
+    if (!neighbors.has(edge?.from) || !neighbors.has(edge?.to) || edge.from === edge.to) continue;
+    neighbors.get(edge.from).add(edge.to); neighbors.get(edge.to).add(edge.from);
+  }
+  const tags = new Set(array(focus.tags).filter((tag) => typeof tag === "string" && tag.trim()));
+  return [...nodeById.values()].filter((node) => node.id !== focusId && !neighbors.get(focusId).has(node.id))
+    .map((node) => ({ node,
+      sharedTags: [...new Set(array(node.tags).filter((tag) => tags.has(tag)))].sort(),
+      sharedNeighborIds: [...neighbors.get(node.id)].filter((id) => neighbors.get(focusId).has(id)).sort(),
+    })).filter((item) => item.sharedTags.length || item.sharedNeighborIds.length >= 2)
+    .sort((a, b) => b.sharedTags.length - a.sharedTags.length ||
+      b.sharedNeighborIds.length - a.sharedNeighborIds.length || compareNodes(a.node, b.node))
+    .slice(0, Math.min(20, Math.max(0, Number.isFinite(options.limit) ? Math.floor(options.limit) : 5)));
 }
 
 export function rankWorkstreams(workstreams) {
