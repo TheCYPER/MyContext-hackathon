@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFile as execFileCallback } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { realpath, stat } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -173,6 +173,18 @@ async function serveStatic(response, publicDir, pathname, headOnly) {
   });
   stream.pipe(response);
 }
+async function validateStaticEntry(publicDir) {
+  const index = await resolveStaticFile(publicDir, "/");
+  if (!index) throw new Error("Dashboard static root is missing a readable index.html");
+  const html = await readFile(index.path, "utf8");
+  const assetPaths = [...html.matchAll(/(?:src|href)="(\/assets\/[A-Za-z0-9._/-]+)"/g)]
+    .map((match) => match[1]);
+  for (const assetPath of assetPaths) {
+    if (!await resolveStaticFile(publicDir, assetPath)) {
+      throw new Error(`Dashboard build is missing referenced asset: ${assetPath}`);
+    }
+  }
+}
 function parseEntityId(pathname) {
   const prefix = "/api/v1/entities/";
   if (!pathname.startsWith(prefix)) return null;
@@ -196,9 +208,7 @@ export async function createDashboardServer(options = {}) {
     }
     throw error;
   }
-  if (!await resolveStaticFile(publicDir, "/")) {
-    throw new Error("Dashboard static root is missing a readable index.html");
-  }
+  await validateStaticEntry(publicDir);
   const projectorPath = await realpath(options.projectorPath || DEFAULT_PROJECTOR);
   const loadProjection = await createProjectionLoader({ root, projectorPath,
     ruby: options.ruby || process.env.MYCONTEXT_RUBY || "ruby" });

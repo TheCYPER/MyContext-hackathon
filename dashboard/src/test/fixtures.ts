@@ -3,7 +3,7 @@ import { vi } from "vitest";
 export const entities = [
   {
     id: "project.motion-atlas", type: "project", title: "Motion Atlas", privacy: "private", status: "active",
-    sources: ["demo:fictional"], aliases: [], tags: ["motion", "internship"], links: ["person.rhea-sen", "experience.meridian"], role: "primary",
+    sources: ["demo:fictional"], aliases: [], tags: ["motion", "internship"], links: ["person.rhea-sen", "experience.meridian", "record.hidden"], role: "primary",
     updated: "2026-09-12T12:00:00Z", path: "projects/motion-atlas/overview.md",
     summary: "A compact prototype for inspecting transitions between motion clips.", sectionTitles: [], sections: [],
   },

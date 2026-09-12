@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -49,5 +49,15 @@ describe("navigation and search", () => {
     await user.click(within(screen.getByRole("region", { name: "Search results" })).getByRole("button", { name: /Rhea Sen/i }));
     expect(await screen.findByRole("dialog", { name: "Rhea Sen" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Search results" })).not.toBeInTheDocument();
+  });
+
+  it("moves focus after navigating from the mobile drawer", async () => {
+    mockApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Open navigation" }));
+    await user.click(within(screen.getByRole("dialog", { name: /MyContext/ })).getByRole("button", { name: "Projects" }));
+    await waitFor(() => expect(document.getElementById("main-content")).toHaveFocus());
   });
 });

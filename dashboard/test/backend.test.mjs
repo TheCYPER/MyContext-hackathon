@@ -395,6 +395,16 @@ test("server refuses a static root without an index", async () => {
   );
 });
 
+test("server refuses an index whose built assets are missing", async () => {
+  const incompletePublicDir = path.join(fixtureRoot, "missing-asset-public");
+  await mkdir(incompletePublicDir, { recursive: true });
+  await writeFile(path.join(incompletePublicDir, "index.html"), '<script type="module" src="/assets/missing.js"></script>', "utf8");
+  await assert.rejects(
+    createDashboardServer({ root: fixtureRoot, publicDir: incompletePublicDir, projectorPath: PROJECTOR }),
+    /missing referenced asset: \/assets\/missing\.js/,
+  );
+});
+
 test("context selection honors explicit roots, shared configuration, and the legacy alias", async (t) => {
   const previous = {
     MY_CONTEXT_ROOT: process.env.MY_CONTEXT_ROOT,

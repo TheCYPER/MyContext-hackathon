@@ -89,6 +89,8 @@ export function App() {
         summary={data.snapshot.entities.find((entity) => entity.id === selectedEntityId)}
         revision={data.snapshot.revision}
         entities={data.snapshot.entities}
+        graphNodeIds={data.snapshot.graph.nodes.map((node) => node.id)}
+        onOpenEntity={setSelectedEntityId}
         onFocusGraph={(id) => { setSelectedEntityId(null); openGraph(id); }}
         onOpenChange={(open) => { if (!open) setSelectedEntityId(null); }}
       />

@@ -32,7 +32,7 @@ export function Header(props: HeaderProps) {
       <div className="mx-auto flex max-w-7xl items-center gap-2">
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild><Button type="button" variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation"><Menu /></Button></SheetTrigger>
-          <SheetContent side="left"><SheetHeader><SheetTitle><Brand /></SheetTitle></SheetHeader><div className="mt-4"><Navigation view={props.view} capabilities={props.snapshot.capabilities} onSelect={(view) => { setMenuOpen(false); props.onSelectView(view); }} /></div></SheetContent>
+          <SheetContent side="left" onCloseAutoFocus={(event) => event.preventDefault()}><SheetHeader><SheetTitle><Brand /></SheetTitle></SheetHeader><div className="mt-4"><Navigation view={props.view} capabilities={props.snapshot.capabilities} onSelect={(view) => { setMenuOpen(false); props.onSelectView(view); }} /></div></SheetContent>
         </Sheet>
         <div className="min-w-0 flex-1 md:max-w-xl"><GlobalSearch entities={props.entities} query={props.query} scope={props.scope} onQueryChange={props.onQueryChange} onScopeChange={props.onScopeChange} onOpenEntity={props.onOpenEntity} /></div>
         <div className="ml-auto hidden xl:block"><RepositoryStatus repo={props.repo} snapshot={props.snapshot} error={props.repoError} /></div>
