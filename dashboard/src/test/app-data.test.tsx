@@ -103,6 +103,24 @@ describe("dashboard bootstrap", () => {
     ).toBeTruthy();
   });
 
+  it("uses lifecycle-tinted square shadows on record cards", async () => {
+    window.location.hash = "projects";
+    mockApi();
+    render(<App />);
+
+    const activeCard = (await screen.findByRole("button", {
+      name: /Motion Atlas/i,
+    })).closest("[data-state-surface]");
+    const archivedCard = screen
+      .getByRole("button", { name: /Archived Prototype/i })
+      .closest("[data-state-surface]");
+
+    expect(activeCard).toHaveAttribute("data-state-surface", "active");
+    expect(activeCard).toHaveClass("shadow-[var(--shadow-active-card)]");
+    expect(archivedCard).toHaveAttribute("data-state-surface", "archived");
+    expect(archivedCard).toHaveClass("shadow-[var(--shadow-archived-card)]");
+  });
+
   it("groups both idea collections into visible in-progress sections", async () => {
     window.location.hash = "ideas";
     mockApi();
@@ -118,6 +136,19 @@ describe("dashboard bootstrap", () => {
         name: "Project ideas — In progress",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("uses a terracotta-tinted shadow on draft idea cards", async () => {
+    window.location.hash = "ideas";
+    mockApi();
+    render(<App />);
+
+    const ideaCard = (await screen.findByRole("button", {
+      name: "Predict Before You Track",
+    })).closest("[data-state-surface]");
+
+    expect(ideaCard).toHaveAttribute("data-state-surface", "draft");
+    expect(ideaCard).toHaveClass("shadow-[var(--shadow-draft-card)]");
   });
 
   it("wraps long idea titles inside their card column", async () => {

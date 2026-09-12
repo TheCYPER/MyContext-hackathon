@@ -24,9 +24,25 @@ export function RecordCard({
   onOpenEntity: (id: string) => void;
   onOpenGraph: (id: string) => void;
 }) {
+  const stateSurface =
+    entity.status === "active" ||
+    entity.status === "draft" ||
+    entity.status === "archived"
+      ? entity.status
+      : "other";
+  const stateShadow = {
+    active: "shadow-[var(--shadow-active-card)]",
+    draft: "shadow-[var(--shadow-draft-card)]",
+    archived: "shadow-[var(--shadow-archived-card)]",
+    other: "shadow-[var(--shadow-card)]",
+  }[stateSurface];
+
   if (layout === "compact") {
     return (
-      <Card className="min-w-0 border-0">
+      <Card
+        data-state-surface={stateSurface}
+        className={cn("min-w-0 border-0", stateShadow)}
+      >
         <CardContent className="grid min-w-0 gap-4 p-4 sm:grid-cols-[minmax(12rem,0.8fr)_minmax(0,1.2fr)] sm:items-start">
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -64,8 +80,10 @@ export function RecordCard({
 
   return (
     <Card
+      data-state-surface={stateSurface}
       className={cn(
-        "min-w-0 transition-colors hover:border-primary/25",
+        "min-w-0 transition-[border-color,box-shadow] hover:border-primary/40",
+        stateShadow,
         layout === "featured" && "border-l-4 border-l-primary",
         layout === "working" && "border-l-4 border-l-signal",
       )}
