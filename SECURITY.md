@@ -14,9 +14,20 @@ host, tunnel, proxy, or hosted deployment with personal data.
 
 The dashboard does not make external AI requests. If you use an AI assistant to
 read context, that assistant's own data handling settings apply. An approved
-context proposal is a workflow requirement; the application does not currently
-provide a mechanically enforced apply-and-sync engine. Source and secret checks
-are defense in depth, not a complete personal-data detector.
+context proposal is a workflow requirement; the application does not provide a
+generic apply-and-sync engine. The separate capture CLI enforces a narrower path:
+selected facts queue outside canonical context by default; an explicitly enabled,
+committed policy permits one new private journal entry and a local commit. It never
+rewrites existing records, enables its own policy, executes Git hooks, or pushes.
+Source and secret checks are defense in depth, not a complete personal-data detector.
+
+The global skill uses an explicit local binding, never the current project or demo
+as a silent fallback. Its local queue holds selected private facts with restrictive
+filesystem permissions; queued facts are not canonical records and do not appear in
+the dashboard. Capture checks the selected payload, bounded policy/Git metadata,
+and canonical headers in selected link scopes. It excludes ignored file contents
+and transcript stores. A skill is not a sandbox: the local
+assistant's filesystem permissions and the owner's context policy still apply.
 
 Never put credentials, private keys, government identifiers, complete account
 records, or third-party confidential material in context at any privacy level.

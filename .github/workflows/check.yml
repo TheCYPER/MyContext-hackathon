@@ -16,6 +16,7 @@ jobs:
         run: |
           git --version
           ruby --version
+          ruby -rjson -e 'puts "JSON #{JSON::VERSION}"'
           node --version
           node -e 'if (Number(process.versions.node.split(".")[0]) < 20) process.exit(1)'
       - name: Verify public source snapshot
