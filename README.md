@@ -1,10 +1,16 @@
 # MyContext
 
-**Personal context your AI can read, cite, and propose changes to — in files you own.**
+**Your academic and professional context, ready for Codex to pick up where you left off.**
 
-MyContext gives a local AI assistant a small, inspectable library of your projects,
-preferences, people, and decisions. Markdown and YAML are the source of truth;
-Git records changes; a local dashboard lets you browse the same knowledge.
+MyContext helps students, researchers and early-career professionals keep the context
+behind their work: internship contributions, project decisions, research questions,
+coursework, experiments and conversations with collaborators. A local AI assistant
+can retrieve that context, cite it and propose updates for you to review.
+
+Markdown and YAML hold the records, Git preserves their history, and a local dashboard
+connects experiences, projects, ideas and people. Skills give your assistant a way to
+work with this library. You continue using Codex or another local AI for the actual
+learning, research and engineering work.
 
 This repository contains the application, reusable Skills, blank templates, and
 fictional demo records. Your own context belongs in a **separate local Git
@@ -14,6 +20,9 @@ private Git history are included in this distribution.
 [中文设计说明](docs/design.zh-CN.md) · [Contributing](CONTRIBUTING.md) ·
 [Privacy boundaries](SECURITY.md) · [Context schema](meta/schema.md)
 
+This academic demo is preserved on `codex/academic-context-demo`. The `main` branch
+retains the initial release. The commands below select this demo branch explicitly.
+
 ## Try it locally
 
 Requirements: Git 2.28+, Node.js 20+, Ruby 2.6+, and a POSIX shell. Use macOS,
@@ -21,7 +30,7 @@ Linux, or WSL. There are no npm dependencies, Ruby gems, model downloads, API ke
 or database services required by the application. You bring your own AI assistant.
 
 ```bash
-git clone https://github.com/TheCYPER/MyContext-hackathon.git
+git clone --branch codex/academic-context-demo https://github.com/TheCYPER/MyContext-hackathon.git
 cd MyContext-hackathon
 npm run setup
 npm test
@@ -29,13 +38,37 @@ npm start
 ```
 
 Open **http://127.0.0.1:4318**. Setup creates `.local/demo/`, an ignored, independent
-Git repository containing only fictional records. It preserves an existing demo
-and refuses to overwrite modified data. The public source repository and demo have
+Git repository containing only fictional records. It preserves a current demo
+and refuses to overwrite modified data or silently keep an outdated example. The public source repository and demo have
 different Git histories. The dashboard reads the demo's **committed HEAD**;
 uncommitted note edits do not appear until committed.
 
 No `npm install` is necessary. Setup reports missing prerequisites without
 installing system packages. If port 4318 is occupied, use `npm start -- --port 4319`.
+
+## Context for the next working session
+
+| When you return to… | Context MyContext keeps available |
+| --- | --- |
+| An internship summary | Your role, contribution scope, linked projects and wording still awaiting review |
+| A research question | Its motivation, proposed comparison, feasibility limits and help to ask an advisor for |
+| An experiment | The current setup, earlier failed attempts, revised assumptions and next check |
+| A course topic | Questions you have answered, gaps exposed by practice and material to revisit |
+| A project idea | The problem, first validation step and what would justify starting implementation |
+
+The demo follows **Alex Lin / 林知远**, a fictional third-year computer science
+student. Its 67 linked records cover three professional experiences, ten projects,
+twelve research and project ideas, learning context, collaborators and dated work
+notes. Every person, institution, contribution and result in this scenario is invented;
+the repository includes no claimed real internship credentials or research outcomes.
+
+Try asking your AI: “What can I accurately say about my internship?”, “Why was the
+first evaluation result withdrawn?”, or “What should I discuss with my research
+mentor next?” See [the demo guide](examples/demo/README.md) for a complete walkthrough.
+
+If setup reports an outdated demo, stop its server and move `.local/demo/` to an
+unused backup name before running setup again. Keep any notes you have added; setup
+does not migrate or replace them automatically.
 
 ## Ask your AI to install everything
 
@@ -47,6 +80,7 @@ installation checklist that you can perform manually.
 ```text
 Install and verify MyContext for me from:
 https://github.com/TheCYPER/MyContext-hackathon.git
+Use branch: codex/academic-context-demo
 
 I want a working local demo first and an empty, separate context repository for
 my own future notes. Follow the steps through verification, and report exactly
@@ -58,7 +92,8 @@ what succeeded. Do not call a partial setup complete.
    files. If a prerequisite is missing, explain the platform-appropriate install
    step; obtain any required system permission before changing system packages.
 
-2. Choose an unused directory for the software. Clone the URL above using Git.
+2. Choose an unused directory for the software. Clone the URL above using Git
+   with `--branch codex/academic-context-demo`.
    Do not clone or copy an existing personal context repository. If a checkout
    with this name already exists, inspect its origin and status; reuse it only
    when it is this project and doing so preserves the user's work. Otherwise
@@ -84,11 +119,12 @@ what succeeded. Do not call a partial setup complete.
 6. Start `npm start` and check http://127.0.0.1:4318/api/v1/health plus the visible
    dashboard. If the port is occupied, select an unused local port using
    `npm start -- --port <port>` and report it. Keep the server bound to localhost.
-   Verify that the demo shows fictional people, projects, and connected records.
+   Verify that the demo shows fictional internships, projects, research ideas and
+   linked collaborators. The dashboard is a view of context, not a built-in AI chat.
    Do not use a public tunnel or deploy personal data to a hosted preview.
 
 7. Exercise retrieval with:
-   `bash scripts/search-context.sh --json Atlas`
+   `bash scripts/search-context.sh --json "Eval Notebook"`
    Read the highest-ranked relevant note and explain the result with its file
    path, evidence source, and uncertainty. Do not turn a generic graph link into
    an invented collaboration or other semantic relationship.
@@ -140,6 +176,8 @@ MY_CONTEXT_ROOT="$HOME/MyContextData" bash scripts/search-context.sh --json "you
 The initializer creates `profile/`, `people/`, `projects/`, `experience/`, `ideas/`,
 `domains/`, `journal/`, and `sources/`, with an index and blank profile documents.
 Read `AGENTS.md` inside the data directory before adding personal information.
+Start with one course, internship or research project: what you are trying to do,
+what has already been tried, the supporting records, and the next unresolved question.
 Knowledge edits are proposed as a diff with an ID, source, privacy level, and hash.
 The owner reviews and approves the exact proposal before it is applied and
 committed. Remote synchronization remains optional and explicitly configured.
@@ -157,7 +195,7 @@ all prose is safe to publish. The public software checks use `npm test` instead.
 | Retrieval | Ranked lexical search over an explicitly selected context; lightweight Librarian guidance |
 | Context Skills | Retrieval, person research, outreach drafts, and explicitly selected session summaries |
 | Human review | Documented proposal workflow with exact diff and hash; no automatic apply engine |
-| Dashboard | Local read-only review desk, people/projects/ideas, focused graph and global atlas |
+| Dashboard | Local read-only academic/work context, experiences, projects, research/project ideas, people and graph |
 | Installation | Synthetic demo, blank personal repository, conflict-safe project skill links |
 
 There is no built-in hosted AI service, vector index, graph database, inbox

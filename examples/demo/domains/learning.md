@@ -1,24 +1,26 @@
 ---
-id: domain.learning
-type: domain
-title: Learning systems
-privacy: private
-updated: 2025-01-15T12:00:00Z
+id: "domain.learning"
+type: "domain"
+title: "Deep learning and course reasoning"
+privacy: "private"
+updated: "2026-09-12T12:00:00Z"
 sources: ["demo:fictional"]
-aliases: ["study tools", "knowledge practice"]
-tags: [demo, learning, retrieval]
-links: [project.atlas, idea.question-trail, profile.goals]
-status: active
+aliases: ["学习", "deep learning", "coursework"]
+tags: ["learning", "practice"]
+links: ["project.study-map", "project.course-database", "person.maya-ortiz", "person.theo-grant", "idea.study-retention", "journal.recall-gap"]
+status: "active"
 ---
 
-# Learning systems
+# Questions in this area
 
-Fictional demo: this area collects the character's questions about remembering why a note mattered.
+Alex is working on gradients, representations, and the difference between reading a solution and producing one. StudyMap preserves the question that caused confusion, the explanation that helped, and a later attempt with different numbers or structure.
 
-## Current questions
+The chain-rule sequence is useful evidence: a guided explanation made sense on April 7, a fresh exercise failed on April 10, and one new example was solved on April 17. That sequence supports targeted practice. It is too small to establish broad mastery or the effectiveness of a study method.
 
-How can a reader return to the question behind a note? When does a connection help a next action rather than merely decorate a graph?
+# Related course work
 
-## Related work
+CourseQuery is a completed relational-query lab. Alex corrected a misconception about COUNT and NULL and checked joins and aggregates on course fixtures. Keep that completed exercise separate from his ongoing deep learning questions.
 
-Atlas is the current fictional prototype. Question trail is an unvalidated possibility, not a completed feature.
+# Next useful help
+
+Choose a question whose solution requires explaining an intermediate step, not merely recalling a formula. Maya can compare reasoning, while Theo can clarify what an exercise is intended to assess.

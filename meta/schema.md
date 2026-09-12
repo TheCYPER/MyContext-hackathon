@@ -24,7 +24,7 @@ Required fields: `id`, `type`, `title`, `privacy`, `updated`, `sources`.
 
 - `type`: `profile | domain | experience | person | project | idea | journal | draft | session_export`
 - `privacy`: `public | private | restricted`
-- `status`: `active | archived | draft`
+- `status`: `active | archived | draft`. This is the record's lifecycle, not an employment or project completion field. Keep a completed internship or prototype `active` when its current overview remains useful context; describe completion and dates in the body. Use `archived` for parked or superseded records that should be excluded from default retrieval.
 - `date`: optional event date in `YYYY-MM-DD` format; use it for journal files.
 - `aliases`, `tags`, `links`: optional YAML lists.
 

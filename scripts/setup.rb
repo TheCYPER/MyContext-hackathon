@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "digest"
 require "json"
 require "open3"
 require "pathname"
@@ -67,6 +68,22 @@ def validate_destination(destination, mode)
   end
 end
 
+def demo_seed_digest
+  entries = {}
+  %w[templates/context examples/demo].each do |relative_root|
+    seed_root = File.join(SOURCE_ROOT, relative_root)
+    Dir.glob(File.join(seed_root, "**", "*"), File::FNM_DOTMATCH).sort.each do |path|
+      next unless File.file?(path) || File.symlink?(path)
+      relative = path.delete_prefix(seed_root + File::SEPARATOR)
+      entries[relative] = File.symlink?(path) ? "symlink:#{File.readlink(path)}" : Digest::SHA256.file(path).hexdigest
+    end
+  end
+  %w[schema.md write-policy.md].each do |name|
+    entries["meta/#{name}"] = Digest::SHA256.file(File.join(SOURCE_ROOT, "meta", name)).hexdigest
+  end
+  Digest::SHA256.hexdigest(JSON.generate([FORMAT_VERSION, CANONICAL_DIRS, entries.sort]))
+end
+
 def existing_demo!(destination)
   marker_path = File.join(destination, ".mycontext-setup.json")
   begin
@@ -74,7 +91,7 @@ def existing_demo!(destination)
   rescue Errno::ENOENT, JSON::ParserError, Errno::ENOTDIR
     raise SetupError, "demo destination already exists without a matching setup marker; nothing was changed"
   end
-  unless marker == { "format" => FORMAT_VERSION, "mode" => "demo" } &&
+  unless marker.is_a?(Hash) && marker["format"] == FORMAT_VERSION && marker["mode"] == "demo" &&
       File.directory?(File.join(destination, ".git")) &&
       !File.symlink?(File.join(destination, ".git")) &&
       git(destination, "rev-parse", "--show-toplevel") == destination
@@ -84,6 +101,9 @@ def existing_demo!(destination)
     raise SetupError, "demo has local changes; setup will not overwrite them. Commit or preserve your changes before rerunning"
   end
   git(destination, "rev-parse", "--verify", "HEAD")
+  unless marker["seed_sha256"] == demo_seed_digest
+    raise SetupError, "demo seed is outdated. Preserve this folder under an unused backup name, then rerun setup. Nothing was changed"
+  end
   puts "Demo already exists and is unchanged: #{destination}"
 end
 
@@ -116,7 +136,9 @@ def create_context(destination, mode)
     FileUtils.mkdir_p(File.join(destination, "meta"))
     policies.each { |path| FileUtils.cp(path, File.join(destination, "meta", File.basename(path))) }
     File.symlink("AGENTS.md", File.join(destination, "CLAUDE.md"))
-    File.write(File.join(destination, ".mycontext-setup.json"), JSON.pretty_generate({ "format" => FORMAT_VERSION, "mode" => mode }) + "\n")
+    marker = { "format" => FORMAT_VERSION, "mode" => mode }
+    marker["seed_sha256"] = demo_seed_digest if mode == "demo"
+    File.write(File.join(destination, ".mycontext-setup.json"), JSON.pretty_generate(marker) + "\n")
     git(destination, "-c", "init.templateDir=", "init", "--initial-branch=main")
     git(destination, "add", "--all")
     git(destination, "commit", "--no-gpg-sign", "-m", mode == "demo" ? "Initialize fictional MyContext demo" : "Initialize blank private context")
