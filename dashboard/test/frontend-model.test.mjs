@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { ATLAS_LANES, buildLegacyRelations, chooseFocusNode, focusNeighborhood, layoutAtlas,
   layoutFocusGraph, rankWorkstreams, relationReferences, relationTrail,
-  academicContextCounts, isSyntheticDemo, viewAvailable, shortestPath } from "../public/model.mjs";
+  academicContextCounts, isSyntheticDemo, viewAvailable, shortestPath } from "../src/lib/model.mjs";
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DASHBOARD_DIR = path.resolve(TEST_DIR, "..");
