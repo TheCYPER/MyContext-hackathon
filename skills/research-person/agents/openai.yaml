@@ -1,0 +1,6 @@
+interface:
+  display_name: "Research Person"
+  short_description: "Research professional background and fit"
+  default_prompt: "Use $research-person to research this collaborator and explain the fit."
+policy:
+  allow_implicit_invocation: true

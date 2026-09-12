@@ -1,0 +1,6 @@
+interface:
+  display_name: "Session Import"
+  short_description: "Export or import one curated task summary"
+  default_prompt: "Use $session-import to prepare a controlled export of this task."
+policy:
+  allow_implicit_invocation: true

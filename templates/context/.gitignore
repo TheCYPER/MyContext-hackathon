@@ -1,0 +1,23 @@
+# Local AI integration and editor state
+.agents/
+.claude/
+.codex/
+.local/
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Credentials, account state, and raw transcripts never belong in context Git.
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+auth.json
+*.sqlite
+*.sqlite3
+*.db
+*.jsonl
+sources/session-exports/

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Outreach"
+  short_description: "Draft grounded professional communication"
+  default_prompt: "Use $outreach to draft a focused message using my verified background."
+policy:
+  allow_implicit_invocation: true

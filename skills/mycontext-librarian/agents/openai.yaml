@@ -1,0 +1,6 @@
+interface:
+  display_name: "MyContext Librarian"
+  short_description: "Find records with a short evidence trail"
+  default_prompt: "Use $mycontext-librarian to find where this decision is recorded."
+policy:
+  allow_implicit_invocation: true

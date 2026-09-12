@@ -1,0 +1,6 @@
+interface:
+  display_name: "My Context"
+  short_description: "Retrieve and maintain your curated context"
+  default_prompt: "Use $my-context to answer this using my current personal context."
+policy:
+  allow_implicit_invocation: true
