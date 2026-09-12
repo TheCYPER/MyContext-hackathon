@@ -13,6 +13,7 @@ prerequisites; it does not install system packages.
 | Knowledge model | `meta/schema.md`, `templates/context/` | Portable Markdown/YAML, stable IDs, clear evidence labels |
 | Dashboard | `dashboard/` | Read-only projection of the selected context's committed HEAD |
 | Onboarding | `scripts/setup.*`, `examples/demo/` | Repeatable synthetic demo and separate blank personal context |
+| Cross-session capture | `scripts/context_binding.rb`, `scripts/capture-context.*`, `scripts/install-global-skill.*` | Explicit library binding; external review queue or enabled journal-only local commit |
 
 Develop branches such as `codex/retrieval-ranking` in this clean repository.
 Worktrees are useful for parallel software work now that this repository has its
@@ -21,7 +22,7 @@ own history. Never base a public branch on a private context repository.
 ## Checks
 
 `npm test` checks the public file boundary and known secret patterns, validates
-the demo and blank scaffold, and runs retrieval, setup, installation, and dashboard
+the demo and blank scaffold, and runs retrieval, setup, installation, capture, and dashboard
 tests with disposable synthetic repositories. `scripts/check.sh --staged` checks
 the actual staged snapshot before publication. No test needs personal files or an
 AI account. These checks are regression tests, not a guarantee that arbitrary
@@ -30,6 +31,12 @@ prose contains no personal information; manually review every release diff.
 Use small behavior-focused tests when changing parsing, privacy, paths, ranking,
 or installation. UI copy-only changes do not require new tests. Keep the existing
 read-only API and security checks when changing presentation.
+
+Capture tests must use disposable synthetic contexts and external temporary state.
+Do not run the capture writer against a contributor's personal library as a smoke
+test. Exercise idempotence, interruption recovery, rejected payloads, policy changes,
+and preservation of unrelated Git state. Test global installation with temporary
+`--config` and `--skills-dir` paths; the test suite must not install real global links.
 
 ## Data and contributions
 

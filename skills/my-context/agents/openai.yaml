@@ -1,6 +1,6 @@
 interface:
   display_name: "My Context"
-  short_description: "Retrieve and maintain your curated context"
-  default_prompt: "Use $my-context to answer this using my current personal context."
+  short_description: "Retrieve and capture academic and work context"
+  default_prompt: "Use $my-context to retrieve relevant context and capture durable academic or work outcomes under my library's write policy."
 policy:
   allow_implicit_invocation: true
