@@ -3,7 +3,7 @@ import { ArrowUpRight } from "@phosphor-icons/react/ArrowUpRight";
 import { Info as ShieldAlert } from "@phosphor-icons/react/Info";
 
 import { relationReferences } from "../../lib/model.mjs";
-import type { LegacyRelation } from "../../lib/model.mjs";
+import type { Relation } from "../../lib/model.mjs";
 import type { Entity } from "../../types";
 import { Badge } from "../ui/badge";
 import { Card, CardContent } from "../ui/card";
@@ -14,7 +14,7 @@ export function RelationPanel({
   focusId,
   entities,
 }: {
-  relations: LegacyRelation[];
+  relations: Relation[];
   selectedRelationId: string | null;
   focusId: string;
   entities: Entity[];
@@ -56,6 +56,7 @@ export function RelationPanel({
       </Card>
     );
   const declarations = selected.declarations || [];
+  const typed = selected.semanticStatus === "typed";
   const firstDeclaration = declarations[0] || {
     from: selected.from,
     to: selected.to,
@@ -72,7 +73,7 @@ export function RelationPanel({
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <Badge variant="secondary">Generic legacy link</Badge>
+            <Badge variant="secondary">{typed ? selected.label || selected.kind.replaceAll("_", " ") : "Generic legacy link"}</Badge>
             <h3 className="mt-3 font-semibold">{heading}</h3>
           </div>
           <ShieldAlert className="size-5 text-signal" />
@@ -80,8 +81,15 @@ export function RelationPanel({
         <dl className="mt-4 grid gap-2 text-sm">
           <div className="flex justify-between gap-3">
             <dt className="text-muted-foreground">Evidence</dt>
-            <dd>Reason not structured</dd>
+            <dd>{typed ? selected.evidence?.replaceAll("_", " ") || "Not recorded" : "Reason not structured"}</dd>
           </div>
+          {typed && <>
+            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Sources</dt><dd className="min-w-0 break-words text-right">{selected.sources?.join(", ") || "Not recorded"}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Valid from</dt><dd>{selected.validFrom || "Unbounded"}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Valid to</dt><dd>{selected.validTo || "Unbounded"}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Recorded in</dt><dd className="min-w-0 break-words text-right">{selected.sourcePath}</dd></div>
+            {selected.note && <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Note</dt><dd className="min-w-0 break-words text-right">{selected.note}</dd></div>}
+          </>}
           <div className="flex justify-between gap-3">
             <dt className="text-muted-foreground">Review</dt>
             <dd>{selected.review || "not represented"}</dd>

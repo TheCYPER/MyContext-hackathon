@@ -19,8 +19,9 @@ export const VIEW_META: Record<ViewName, { kicker: string; title: string; deck: 
 
 const isView = (value: string): value is ViewName => Object.hasOwn(VIEW_META, value);
 
-function fromHash(capabilities?: CapabilitySet) {
+function fromHash(capabilities?: CapabilitySet, current: ViewName = "desk") {
   const candidate = window.location.hash.replace(/^#/, "");
+  if (candidate && !isView(candidate)) return viewAvailable(current, capabilities) ? current : "desk";
   return isView(candidate) && viewAvailable(candidate, capabilities) ? candidate : "desk";
 }
 
@@ -28,7 +29,7 @@ export function useHashView(capabilities?: CapabilitySet) {
   const [view, setViewState] = useState<ViewName>(() => fromHash(capabilities));
 
   useEffect(() => {
-    const sync = () => setViewState(fromHash(capabilities));
+    const sync = () => setViewState((current) => fromHash(capabilities, current));
     window.addEventListener("hashchange", sync);
     sync();
     return () => window.removeEventListener("hashchange", sync);

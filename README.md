@@ -5,7 +5,9 @@
 MyContext helps students, researchers and early-career professionals keep the context
 behind their work: internship contributions, project decisions, research questions,
 coursework, experiments and conversations with collaborators. A local AI assistant
-can retrieve that context, cite it and propose updates for you to review.
+can retrieve that context, cite it and capture useful outcomes from other working
+sessions. New facts wait for review by default; an optional policy allows automatic
+private journal entries while changes to existing records remain reviewed.
 
 Markdown and YAML hold the records, Git preserves their history, and a local dashboard
 connects experiences, projects, ideas and people. Skills give your assistant a way to
@@ -20,12 +22,12 @@ private Git history are included in this distribution.
 [中文设计说明](docs/design.zh-CN.md) · [Contributing](CONTRIBUTING.md) ·
 [Privacy boundaries](SECURITY.md) · [Context schema](meta/schema.md)
 
-This academic demo is preserved on `codex/academic-context-demo`. The `main` branch
-retains the initial release. The commands below select this demo branch explicitly.
+The commands below select `codex/academic-context-demo`, which includes the
+cross-session capture workflow and the academic demo.
 
 ## Try it locally
 
-Requirements: Git 2.28+, Node.js 22.12+, Ruby 2.6+, and a POSIX shell. Use macOS,
+Requirements: Git 2.28+, Node.js 22.13+, Ruby 2.6+, and a POSIX shell. Use macOS,
 Linux, or WSL. The dashboard uses local npm packages; it needs no Ruby gems,
 model downloads, API keys, or database services. You bring your own AI assistant.
 
@@ -48,6 +50,18 @@ uncommitted note edits do not appear until committed.
 The build produces the local production dashboard in `dashboard/dist/`. Setup
 reports missing prerequisites without installing system packages. If port 4318
 is occupied, use `npm start -- --port 4319`.
+
+Smoke-check the demo's curated semantic graph from the same source checkout:
+
+```bash
+bash scripts/query-graph.sh --root "$PWD/.local/demo" --json neighbors person.rhea-sen
+bash scripts/query-graph.sh --root "$PWD/.local/demo" --include-inference --include-drafts --json \
+  path idea.evidence-calibration project.eval-notebook
+```
+
+The command returns stable record and relation IDs, the exact Git revision, edge
+evidence, sources, review state, privacy, and validity dates. It reports recorded
+assertion paths; it does not infer a transitive fact from the path.
 
 ## Context for the next working session
 
@@ -77,7 +91,7 @@ does not migrate or replace them automatically.
 
 Copy the entire prompt below into a local AI coding assistant with filesystem and
 terminal access. It can clone the project, inspect the implementation, prepare the
-folders, verify the demo, and connect project-scoped Skills. The prompt is also an
+folders, verify the demo, and connect local and global Skills. The prompt is also an
 installation checklist that you can perform manually.
 
 ```text
@@ -90,7 +104,7 @@ my own future notes. Follow the steps through verification, and report exactly
 what succeeded. Do not call a partial setup complete.
 
 1. Inspect the current working directory and available Git, Node.js, Ruby, and
-   shell versions. MyContext requires Git 2.28+, Node.js 22.12+, Ruby 2.6+, and a
+   shell versions. MyContext requires Git 2.28+, Node.js 22.13+, Ruby 2.6+, and a
    POSIX shell. On Windows use WSL. Do not print credentials or inspect auth
    files. If a prerequisite is missing, explain the platform-appropriate install
    step; obtain any required system permission before changing system packages.
@@ -116,8 +130,8 @@ what succeeded. Do not call a partial setup complete.
 
 5. Run `bash scripts/install-skills.sh` from the source root to install local
    Skills into the demo's `.agents/skills/` and `.claude/skills/` directories.
-   These are project-scoped links. Do not touch global skill directories or
-   replace existing links. Open the demo directory as the AI workspace when
+   These are project-scoped links. Do not replace existing links. Open the demo
+   directory as the AI workspace and explicitly set MY_CONTEXT_ROOT to that demo when
    using its project-scoped Skills; inspect their SKILL.md directly if your
    client does not automatically discover them.
 
@@ -145,9 +159,17 @@ what succeeded. Do not call a partial setup complete.
    chosen path. Verify that the new personal context has its own Git root, a
    blank initial commit, and no remote. Do not configure a remote or push my data.
    If I later request synchronization, use a separately reviewed private remote.
+   Also run `bash scripts/install-global-skill.sh --context "$HOME/MyContextData"`
+   with the chosen absolute path. This installs only my-context for cross-project
+   use and creates its library binding. Preserve and report existing conflicting
+   skills or bindings; do not overwrite them. Other Skills remain project-scoped.
 
-10. Explain how I can open that context directory in my AI assistant and invoke
-    its my-context or mycontext-librarian Skill. To view my personal context,
+10. Explain how I can invoke my-context from another project to retrieve context
+    and capture selected work outcomes, or open the context directory to use its
+    other local Skills. Check `bash scripts/capture-context.sh status` from an
+    unrelated directory. New contexts queue capture candidates for review outside
+    the canonical repository. Do not enable automatic journal commits as part of
+    installation; explain the separate reviewed policy opt-in. To view my context,
     run from the software directory:
     `npm start -- --root "$HOME/MyContextData" --port 4319`
     Replace the example path with the actual one. The dashboard shows committed
@@ -170,8 +192,9 @@ bash scripts/install-skills.sh "$HOME/MyContextData"
 npm start -- --root "$HOME/MyContextData" --port 4319
 ```
 
-Open `MyContextData` as your AI workspace. Local Skills link back to the software
-checkout, so keep that checkout in place. You can also set `MY_CONTEXT_ROOT` when
+Open `MyContextData` as your AI workspace and set `MY_CONTEXT_ROOT` to that path
+when using project-scoped Skills. Skill links point back to the software checkout,
+so keep that checkout in place. You can also set `MY_CONTEXT_ROOT` when
 running search or the dashboard:
 
 ```bash
@@ -192,16 +215,64 @@ To check a proposed context change after staging it, run the software checkout's
 and scans known secret patterns; it does not validate unstaged edits or prove that
 all prose is safe to publish. The public software checks use `npm test` instead.
 
+## Capture from any project
+
+Bind your library once and install the global My Context Skill:
+
+```bash
+bash scripts/install-global-skill.sh --context "$HOME/MyContextData"
+bash scripts/capture-context.sh status
+```
+
+The installer adds `my-context` to `~/.agents/skills/` for Codex and
+`~/.claude/skills/` for Claude, and records the selected library in
+`~/.config/mycontext/config.json` (or under `XDG_CONFIG_HOME`). It refuses conflicting
+links or a different binding. Codex's user skill location is documented in the
+[official skills guide](https://developers.openai.com/codex/skills/). Keep the
+software checkout at its installed path. If your client has not picked up the skill,
+restart it. To install for one client only, pass `--skills-dir` with that client's
+absolute skills directory.
+
+From an internship, coursework, or research project, ask:
+
+> Use $my-context to remember the experiment result, its limitations, and our next step.
+
+The assistant selects short facts from the current task and attaches sources and
+evidence labels. It does not copy the conversation. With the skill active, it can
+also capture useful decisions and results as the work finishes. This is skill
+invocation, not a guaranteed session-end hook or an always-running collector.
+
+| Capture mode | What happens |
+| --- | --- |
+| Review, the default | A private candidate and receipt are queued outside your context repository. The assistant reports “queued for review.” |
+| Automatic journal, explicitly enabled | One new private journal entry is committed locally and becomes available to retrieval and the dashboard. |
+
+In both modes, edits to existing profiles, project pages, corrections, and deletions
+retain the reviewed proposal workflow. Automatic capture never pushes. Repeating
+the same event does not create duplicate entries. A changed payload with the same
+event ID is rejected; unrelated local changes prevent automatic append.
+
+To enable automatic journal capture, ask your assistant to prepare the exact policy
+proposal described in [the capture guide](skills/my-context/references/capture.md)
+and approve it under your library's existing rules. Installing this version does
+not enable writing in an older library. Missing or mismatched policy returns capture
+to review. The queue lives in the binding's external `state` directory; it is private
+local data, not part of your canonical Git history or remote backup.
+
+The same guide documents the bounded JSON capture command, receipt inspection and
+retry behavior. There is no service, database, transcript watcher, or API key to set up.
+
 ## What is implemented
 
 | Capability | Current behavior |
 | --- | --- |
-| Portable knowledge | Markdown/YAML records with stable IDs, privacy labels, dates, sources, and links |
+| Portable knowledge | Markdown/YAML records with stable IDs, privacy labels, dates, sources, legacy links, and typed relation assertions |
 | Retrieval | Ranked lexical search over an explicitly selected context; lightweight Librarian guidance |
-| Context Skills | Retrieval, person research, outreach drafts, and explicitly selected session summaries |
-| Human review | Documented proposal workflow with exact diff and hash; no automatic apply engine |
-| Dashboard | Local read-only academic/work context, experiences, projects, research/project ideas, people and graph |
-| Installation | Synthetic demo, blank personal repository, conflict-safe project skill links |
+| Context Skills | Global retrieval and selected-fact capture, plus local research, outreach drafts and explicit session summaries |
+| Capture | Private review queue by default; explicit opt-in for new journal entries committed locally |
+| Human review | Exact diff/hash proposals for existing-record edits and policy changes; no generic apply engine |
+| Dashboard | Local read-only academic/work context and an explainable graph spanning experiences, projects, ideas, people, journals, and drafts |
+| Installation | Synthetic demo, blank personal repository, project links and a conflict-safe global library binding |
 
 There is no built-in hosted AI service, vector index, graph database, inbox
 integration, message sending, automatic transcript collection, or automatic
@@ -216,12 +287,44 @@ The Librarian Skill uses that workflow without requiring another agent service.
 Lexical search is still sensitive to wording; it is not a measured semantic-search
 benchmark or a guarantee that every relevant note is found.
 
-The current graph represents recorded links among context records. A richer
-knowledge graph would attach meaning to each relation, such as “participates in,”
-and retain its source. RDF illustrates this as subject–predicate–object triples.
-See [W3C RDF Concepts](https://www.w3.org/TR/rdf11-concepts/#section-triples).
-Typed relations and a redesigned visualization are planned separately; existing
-untyped links must not silently become claims about people.
+The graph projects two deliberately different kinds of connection. Existing
+`links` remain untyped `related_to` connections. Curated frontmatter `relations`
+are directed assertions with a predicate, target, evidence class, source locators,
+review state, privacy, and optional validity dates and note. The supported
+predicates are `participates_in`, `part_of`, `about`, `motivated_by`, `supports`,
+`contradicts`, and `supersedes`. The dashboard shows both kinds and explains the
+metadata behind a selected typed edge; it never upgrades a legacy link into a
+semantic fact.
+
+For example, a fictional journal record can make this reviewed assertion:
+
+```yaml
+relations:
+  - id: "relation.eval-leakage-about-eval-notebook"
+    predicate: "about"
+    target: "project.eval-notebook"
+    evidence: "artifact"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    valid_from: "2026-08-24"
+    note: "Curated from this synthetic journal entry's explicit account."
+```
+
+The record containing the list is the subject. `confirmed` means that a human has
+curated the assertion; in the distributed demo it confirms only a fictional
+scenario statement. `artifact` identifies support in an inspectable record and is
+not a claim that the demo contains a real-world artifact. `inference` stays
+explicit when the relationship interprets the recorded text. Relation privacy is
+combined with both endpoints and any canonical `context:*` source records so a
+relation cannot expose more restricted supporting context.
+
+Graph projection, traversal, and CLI queries read the selected context repository's
+committed Git `HEAD`. They do not infer missing relationships, follow untyped links
+as semantic evidence, mutate Markdown, or require a graph database. RDF illustrates
+the subject–predicate–object shape, but MyContext keeps the canonical assertion in
+Markdown/YAML. See [W3C RDF Concepts](https://www.w3.org/TR/rdf11-concepts/#section-triples)
+and [the dashboard guide](dashboard/README.md) for the API and command examples.
 
 ## Team development
 

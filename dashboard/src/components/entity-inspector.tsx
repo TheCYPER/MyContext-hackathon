@@ -1,10 +1,11 @@
 import { FileText } from "@phosphor-icons/react/FileText";
 import { GitCommit as GitCommitHorizontal } from "@phosphor-icons/react/GitCommit";
 import { ShareNetwork as Network } from "@phosphor-icons/react/ShareNetwork";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { getEntity } from "../lib/api";
-import type { Entity } from "../types";
+import { buildRelations, relationReferences } from "../lib/model.mjs";
+import type { Entity, GraphEdge } from "../types";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import {
@@ -17,14 +18,13 @@ import {
 import { ScrollArea } from "./ui/scroll-area";
 import { Skeleton } from "./ui/skeleton";
 
-const detailCache = new Map<string, { entity: Entity; revision: string }>();
-
 export function EntityInspector({
   entityId,
   summary,
   revision,
   entities,
   graphNodeIds,
+  graphEdges = [],
   onOpenEntity,
   onFocusGraph,
   onOpenChange,
@@ -34,14 +34,17 @@ export function EntityInspector({
   revision: string;
   entities: Entity[];
   graphNodeIds: string[];
+  graphEdges?: GraphEdge[];
   onOpenEntity: (id: string) => void;
   onFocusGraph: (id: string) => void;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [detail, setDetail] = useState<{
+  const detailCache = useRef(new Map<string, { entity: Entity; revision: string }>());
+  const [loadedDetail, setDetail] = useState<{
     entity: Entity;
     revision: string;
   } | null>(null);
+  const detail = loadedDetail?.entity.id === entityId && loadedDetail.revision === revision ? loadedDetail : null;
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,7 +53,8 @@ export function EntityInspector({
       setError(null);
       return;
     }
-    const cached = detailCache.get(entityId);
+    const cacheKey = `${revision}:${entityId}`;
+    const cached = detailCache.current.get(cacheKey);
     if (cached) {
       setDetail(cached);
       setError(null);
@@ -59,10 +63,10 @@ export function EntityInspector({
     let active = true;
     setDetail(null);
     setError(null);
-    getEntity(entityId)
+    getEntity(entityId, revision)
       .then((value) => {
         if (!active) return;
-        detailCache.set(entityId, value);
+        detailCache.current.set(cacheKey, value);
         setDetail(value);
       })
       .catch((reason: unknown) => {
@@ -76,16 +80,12 @@ export function EntityInspector({
     return () => {
       active = false;
     };
-  }, [entityId]);
+  }, [entityId, revision]);
 
   const entity = detail?.entity || summary;
-  const visibleIds = new Set(entities.map((candidate) => candidate.id));
-  const outgoing = (entity?.links || []).filter((id) => visibleIds.has(id));
-  const incoming = entity
-    ? entities
-        .filter((candidate) => candidate.links.includes(entity.id))
-        .map((candidate) => candidate.id)
-    : [];
+  const { outgoing, incoming } = relationReferences(
+    buildRelations(entities, graphEdges), entity?.id || "",
+  );
   const byId = new Map(entities.map((candidate) => [candidate.id, candidate]));
   const graphVisible = Boolean(entity && graphNodeIds.includes(entity.id));
   return (
@@ -200,9 +200,10 @@ export function EntityInspector({
                       Outgoing
                     </h4>
                     {outgoing.length ? (
-                      outgoing.map((id) => (
+                      outgoing.map(({ otherId: id, relation }) => (
                         <Button
-                          key={id}
+                          key={`${relation.id}-${id}`}
+                          aria-label={`Open ${byId.get(id)?.title || id}${relation.semanticStatus === "typed" ? ` ${relation.kind.replaceAll("_", " ")} · ${relation.review}` : ""}`}
                           type="button"
                           variant="ghost"
                           size="sm"
@@ -210,6 +211,7 @@ export function EntityInspector({
                           onClick={() => onOpenEntity(id)}
                         >
                           Open {byId.get(id)?.title || id}
+                          {relation.semanticStatus === "typed" && <span className="ml-2 text-xs text-muted-foreground"> {relation.kind.replaceAll("_", " ")} · {relation.review}</span>}
                         </Button>
                       ))
                     ) : (
@@ -223,9 +225,10 @@ export function EntityInspector({
                       Incoming
                     </h4>
                     {incoming.length ? (
-                      incoming.map((id) => (
+                      incoming.map(({ otherId: id, relation }) => (
                         <Button
-                          key={id}
+                          key={`${relation.id}-${id}`}
+                          aria-label={`Open ${byId.get(id)?.title || id}${relation.semanticStatus === "typed" ? ` ${relation.kind.replaceAll("_", " ")} · ${relation.review}` : ""}`}
                           type="button"
                           variant="ghost"
                           size="sm"
@@ -233,6 +236,7 @@ export function EntityInspector({
                           onClick={() => onOpenEntity(id)}
                         >
                           Open {byId.get(id)?.title || id}
+                          {relation.semanticStatus === "typed" && <span className="ml-2 text-xs text-muted-foreground"> {relation.kind.replaceAll("_", " ")} · {relation.review}</span>}
                         </Button>
                       ))
                     ) : (

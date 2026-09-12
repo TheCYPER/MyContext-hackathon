@@ -1,4 +1,4 @@
-import { ATLAS_LANES, layoutAtlas } from "../../lib/model.mjs";
+import { layoutAtlas } from "../../lib/model.mjs";
 import type { GraphEdge, GraphNode } from "../../types";
 
 export function GlobalGraph({
@@ -20,7 +20,7 @@ export function GlobalGraph({
       <summary className="cursor-pointer px-5 py-4 text-sm font-medium">
         Global overview{" "}
         <span className="ml-2 text-xs font-normal text-muted-foreground">
-          Secondary · all visible legacy links
+          Secondary · visible recorded relationships
         </span>
       </summary>
       <div className="overflow-auto border-t">
@@ -29,7 +29,7 @@ export function GlobalGraph({
           className="block min-w-[1100px]"
           aria-label="Global context graph"
         >
-          {ATLAS_LANES.map(
+          {layout.lanes.map(
             (lane: {
               type: string;
               label: string;

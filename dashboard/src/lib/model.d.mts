@@ -2,6 +2,8 @@ import type { CapabilitySet, Entity, GraphEdge, GraphNode, Workstream } from "..
 
 export const ATLAS_LANES: ReadonlyArray<{ type: string; label: string; x: number; width: number }>;
 export const LEGACY_RELATION_BOUNDARY: Readonly<Record<string, string>>;
+export const TYPED_RELATION_KINDS: readonly string[];
+export const RELATION_REVIEWS: readonly string[];
 
 export interface LegacyRelation extends GraphEdge {
   projectedProvenance?: string | null;
@@ -9,11 +11,23 @@ export interface LegacyRelation extends GraphEdge {
 }
 
 export function buildLegacyRelations(entities: Entity[], edges?: GraphEdge[]): LegacyRelation[];
+export type Relation = LegacyRelation;
+export interface RelationFilters {
+  predicates?: string[];
+  reviews?: string[];
+  evidence?: "present" | "missing" | "";
+  includeRejected?: boolean;
+  includeOutOfValidity?: boolean;
+  at?: Date | string;
+}
+export function buildRelations(entities: Entity[], edges?: GraphEdge[]): Relation[];
+export function filterRelations(relations: Relation[], filters?: RelationFilters): Relation[];
+export function relationIsCurrent(relation: GraphEdge, at?: Date | string): boolean;
 export function relationReferences(relations: LegacyRelation[], entityId: string): { outgoing: Array<{ relation: LegacyRelation; otherId: string; direction: "outgoing" }>; incoming: Array<{ relation: LegacyRelation; otherId: string; direction: "incoming" }> };
 export function relationTrail(relations: LegacyRelation[], entityId: string): Array<{ relation: LegacyRelation; otherId: string; direction: "outgoing" | "incoming" | "mutual"; outgoing: boolean; incoming: boolean }>;
 export function focusNeighborhood(nodes: GraphNode[], relations: LegacyRelation[], focusId: string, depth?: number): { nodes: GraphNode[]; relations: LegacyRelation[]; distances: Map<string, number> };
 export function chooseFocusNode(nodes: GraphNode[], relations: LegacyRelation[], preferredId?: string | null): string | null;
-export function shortestPath(nodes: GraphNode[], relations: LegacyRelation[], startId: string, targetId: string): { nodeIds: string[]; relationIds: string[] } | null;
+export function shortestPath(nodes: GraphNode[], relations: LegacyRelation[], startId: string, targetId: string, options?: RelationFilters & { mode?: "directed" | "undirected" }): { nodeIds: string[]; relationIds: string[] } | null;
 export function layoutFocusGraph(nodes: GraphNode[], relations: LegacyRelation[], focusId: string, depth?: number): { nodes: GraphNode[]; relations: LegacyRelation[]; distances: Map<string, number>; positions: Map<string, { x: number; y: number; width: number; height: number }>; width: number; height: number };
 export function rankWorkstreams(workstreams: Workstream[]): Workstream[];
 export function layoutAtlas(nodes: GraphNode[]): { nodes: GraphNode[]; positions: Map<string, { x: number; y: number; width: number; height: number }>; lanes: typeof ATLAS_LANES; width: number; height: number };

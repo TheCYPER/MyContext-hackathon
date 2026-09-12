@@ -8,6 +8,15 @@ sources: ["demo:fictional"]
 aliases: ["animation transitions", "motion matching", "动作过渡", "foot sliding"]
 tags: ["animation", "prototype", "internship", "evaluation"]
 links: ["experience.meridian-internship", "person.evan-cole", "person.jun-park", "domain.engineering", "idea.motion-evaluation", "journal.motion-baseline", "journal.motion-limitation"]
+relations:
+  - id: "relation.motion-atlas-part-of-meridian-internship"
+    predicate: "part_of"
+    target: "experience.meridian-internship"
+    evidence: "artifact"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    note: "Curated from this synthetic project page, which explicitly describes Motion Atlas as a fictional internship prototype."
 status: "active"
 ---
 

@@ -295,7 +295,7 @@ export function mockApi(options: { repoFails?: boolean } = {}) {
           status: 200,
         });
       }
-      const id = decodeURIComponent(path.split("/").pop() || "");
+      const id = decodeURIComponent(new URL(path, "http://localhost").pathname.split("/").pop() || "");
       const summary = entities.find((entity) => entity.id === id);
       if (summary)
         return new Response(

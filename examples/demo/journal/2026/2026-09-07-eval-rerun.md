@@ -8,6 +8,16 @@ sources: ["demo:fictional"]
 aliases: ["grouped split rerun", "分组重跑", "single seed"]
 tags: ["research-memory"]
 links: ["project.eval-notebook", "person.rhea-sen", "person.nora-diaz", "journal.eval-leakage", "draft.lab-review"]
+relations:
+  - id: "relation.eval-rerun-supersedes-eval-split"
+    predicate: "supersedes"
+    target: "journal.eval-split"
+    evidence: "artifact"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    valid_from: "2026-09-07"
+    note: "For the synthetic scenario's current protocol, this grouped-split rerun replaces the earlier clip-random setup; the older fictional note remains historical context."
 status: "active"
 date: "2026-09-07"
 ---

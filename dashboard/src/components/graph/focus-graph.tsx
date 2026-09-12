@@ -54,21 +54,29 @@ export function FocusGraph({
         {relations.map((relation) => {
           const from = center(relation.from);
           const to = center(relation.to);
-          const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+          const parallels = relations.filter((candidate) =>
+            (candidate.from === relation.from && candidate.to === relation.to) ||
+            (candidate.from === relation.to && candidate.to === relation.from));
+          const offset = (parallels.indexOf(relation) - (parallels.length - 1) / 2) * 24;
+          const direction = relation.from < relation.to ? 1 : -1;
+          const distance = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+          const shift = { x: -(to.y - from.y) / distance * offset * direction, y: (to.x - from.x) / distance * offset * direction };
+          const mid = { x: (from.x + to.x) / 2 + shift.x, y: (from.y + to.y) / 2 + shift.y };
+          const typed = relation.semanticStatus === "typed";
           const path = pathRelationIds.has(relation.id);
           return (
             <g key={relation.id}>
-              <line
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
+              <path
+                d={`M ${from.x} ${from.y} Q ${mid.x + shift.x} ${mid.y + shift.y} ${to.x} ${to.y}`}
+                fill="none"
                 className={path ? "graph-edge graph-edge-path" : "graph-edge"}
               />
               <g
                 role="button"
                 tabIndex={0}
-                aria-label={`Relationship ${nodeById.get(relation.from)?.title} and ${nodeById.get(relation.to)?.title}`}
+                aria-label={typed
+                  ? `Relationship ${nodeById.get(relation.from)?.title} → ${nodeById.get(relation.to)?.title}: ${relation.kind.replaceAll("_", " ")} (${relation.review})`
+                  : `Relationship ${nodeById.get(relation.from)?.title} and ${nodeById.get(relation.to)?.title}`}
                 className="graph-relation-control"
                 onClick={() => onSelectRelation(relation.id)}
                 onKeyDown={(event) =>
@@ -80,8 +88,8 @@ export function FocusGraph({
                   cy={mid.y}
                   r={selectedRelationId === relation.id ? 10 : 7}
                 />
-                <text x={mid.x} y={mid.y + 3} textAnchor="middle">
-                  ↗
+                <text x={mid.x} y={mid.y + 3} textAnchor="middle" transform={typed ? `rotate(${Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI} ${mid.x} ${mid.y})` : undefined}>
+                  {typed ? "→" : "↗"}
                 </text>
               </g>
             </g>

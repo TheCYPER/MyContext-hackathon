@@ -8,6 +8,15 @@ sources: ["demo:fictional"]
 aliases: ["evidence calibration", "claim strength", "结论与证据", "研究想法", "实验记录", "证据校准"]
 tags: ["research-idea", "reproducibility", "evaluation"]
 links: ["project.eval-notebook", "domain.research", "person.rhea-sen", "person.nora-diaz"]
+relations:
+  - id: "relation.evidence-calibration-motivated-by-eval-notebook"
+    predicate: "motivated_by"
+    target: "project.eval-notebook"
+    evidence: "inference"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    note: "Curated inference from this synthetic idea's statement that the fictional Eval Notebook leakage episode motivates the question."
 status: "draft"
 idea_kind: "research"
 ---

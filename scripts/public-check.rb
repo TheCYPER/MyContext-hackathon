@@ -42,6 +42,12 @@ Find.find(root) do |path|
       sources = meta.is_a?(Hash) && meta["sources"]
       expected = rel.start_with?("examples/demo/") ? "demo:fictional" : "template:blank"
       errors << "non-synthetic source in distributed context: #{rel}" unless sources == [expected]
+      if meta.is_a?(Hash) && meta.key?("relations")
+        relations = meta["relations"]
+        unless relations.is_a?(Array) && relations.all? { |relation| relation.is_a?(Hash) && relation["sources"] == [expected] }
+          errors << "non-synthetic relation source in distributed context: #{rel}"
+        end
+      end
     rescue Psych::Exception
       errors << "invalid distributed frontmatter: #{rel}"
     end

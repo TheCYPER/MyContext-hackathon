@@ -34,8 +34,9 @@ export async function getRepo() {
   return payload.repo;
 }
 
-export async function getEntity(id: string) {
-  const payload = await getJson<ApiEnvelope<Entity>>(`/api/v1/entities/${encodeURIComponent(id)}`);
+export async function getEntity(id: string, revision: string) {
+  const payload = await getJson<ApiEnvelope<Entity>>(`/api/v1/entities/${encodeURIComponent(id)}?revision=${encodeURIComponent(revision)}`);
   if (!payload.entity) throw new Error("Entity response was incomplete");
-  return { entity: payload.entity, revision: payload.revision || "" };
+  if (payload.revision !== revision) throw new Error("Context changed; refresh the page before opening this record");
+  return { entity: payload.entity, revision: payload.revision };
 }

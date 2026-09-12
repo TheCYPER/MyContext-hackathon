@@ -8,6 +8,15 @@ sources: ["demo:fictional"]
 aliases: ["asset review", "asset export", "review manifest", "资产审阅"]
 tags: ["engineering", "internship", "workflow", "provenance"]
 links: ["experience.meridian-internship", "person.evan-cole", "domain.engineering", "idea.asset-provenance", "journal.asset-review"]
+relations:
+  - id: "relation.framebridge-part-of-meridian-internship"
+    predicate: "part_of"
+    target: "experience.meridian-internship"
+    evidence: "artifact"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    note: "Curated from this synthetic project page, which explicitly describes FrameBridge as fictional internship tooling."
 status: "active"
 ---
 

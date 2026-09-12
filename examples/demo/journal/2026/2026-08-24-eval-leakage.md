@@ -8,6 +8,16 @@ sources: ["demo:fictional"]
 aliases: ["数据泄漏", "split leakage", "source-sequence leakage"]
 tags: ["research-memory"]
 links: ["project.eval-notebook", "person.rhea-sen", "person.nora-diaz", "journal.eval-split", "journal.eval-rerun", "idea.evidence-calibration"]
+relations:
+  - id: "relation.eval-leakage-about-eval-notebook"
+    predicate: "about"
+    target: "project.eval-notebook"
+    evidence: "artifact"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    valid_from: "2026-08-24"
+    note: "Curated from this synthetic journal entry's explicit account of the fictional Eval Notebook split review."
 status: "active"
 date: "2026-08-24"
 ---

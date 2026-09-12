@@ -33,6 +33,17 @@ describe("navigation and search", () => {
     expect(screen.queryByRole("button", { name: /Motion Atlas/i })).not.toBeInTheDocument();
   });
 
+  it("keeps the selected view when following the skip-to-content link", async () => {
+    mockApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Projects" }));
+    await user.click(screen.getByRole("link", { name: "Skip to main content" }));
+    await waitFor(() => expect(window.location.hash).toBe("#main-content"));
+    expect(screen.getByRole("heading", { name: "Projects, with their evidence." })).toBeInTheDocument();
+  });
+
   it("keeps scope limited to search, dismisses results after selection, and focuses changed views", async () => {
     mockApi();
     const user = userEvent.setup();

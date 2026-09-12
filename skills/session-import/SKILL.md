@@ -9,6 +9,8 @@ Create a controlled source export from one identified task, then distill separat
 
 Follow [context resolution and retrieval](../my-context/references/retrieval.md). Read the selected context's `AGENTS.md` and, before proposing any storage, its `meta/schema.md` and `meta/write-policy.md`. An export-only request can return the maintained prompt without loading personal files.
 
+For selected academic/work facts already visible in the active task, `$my-context` provides a bounded capture workflow. That capability does not authorize this skill to export or ingest whole sessions, bypass the separate export approval, or inspect transcript stores. Keep the explicit session-import workflow below unchanged.
+
 ## Choose the mode
 
 - To obtain an export from a task, read [references/export-prompt.md](references/export-prompt.md) and return the prompt without weakening its limits.

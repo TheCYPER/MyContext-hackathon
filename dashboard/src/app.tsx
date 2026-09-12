@@ -233,6 +233,7 @@ export function App() {
         revision={data.snapshot.revision}
         entities={data.snapshot.entities}
         graphNodeIds={data.snapshot.graph.nodes.map((node) => node.id)}
+        graphEdges={data.snapshot.graph.edges}
         onOpenEntity={setSelectedEntityId}
         onFocusGraph={(id) => {
           setSelectedEntityId(null);

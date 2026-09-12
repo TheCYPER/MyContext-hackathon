@@ -78,13 +78,18 @@ export interface GraphEdge {
   from: string;
   to: string;
   kind: string;
+  label?: string;
   provenance: string;
   declaredBy: string;
   sourcePath: string;
   semanticStatus: string;
-  evidence: string;
+  evidence: string | null;
+  sources?: string[];
   review: string;
   privacy: string;
+  validFrom?: string;
+  validTo?: string;
+  note?: string;
   declarations?: Array<{ from: string; to: string; sourcePath?: string }>;
 }
 

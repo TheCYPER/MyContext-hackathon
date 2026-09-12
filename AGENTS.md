@@ -11,14 +11,18 @@ in a separate local Git repository. `examples/demo/` is fictional;
   credentials, personal exports, or local configuration into this repository.
 - Keep generated demo data, local settings, and skill links under ignored `.local/`
   or in an explicitly selected external context directory.
-- Do not install or replace global AI skills. `scripts/install-skills.sh` installs
-  project-scoped links in the selected context directory and refuses conflicts.
+- Install global AI skills only when the user explicitly requests cross-project
+  access. `scripts/install-global-skill.sh` binds one selected context and refuses
+  conflicts. Preserve an existing installation before an authorized migration.
+  `scripts/install-skills.sh` remains available for project-scoped links.
 - Resolve personal context explicitly; read that context's `AGENTS.md`, `INDEX.md`,
   and `meta/write-policy.md` before using or updating it. Personal-data edits require
-  the owner's reviewed proposal approval. Source-code edits do not grant permission
-  to change personal data.
+  the owner's reviewed proposal approval, except new journal entries through the
+  capture command when that context has explicitly enabled its narrow automatic
+  capture policy. Source-code edits do not enable that policy in existing contexts.
 - Keep Markdown/YAML as canonical knowledge. The dashboard projects committed Git
-  HEAD and remains read-only. Do not add sending, scheduling, inbox access, background
+  HEAD and remains read-only. A local capture queue outside canonical context is
+  allowed. Do not add sending, scheduling, external mailbox access, background
   transcript ingestion, or claims that a draft has been sent.
 - A generic graph link means a recorded connection, not a proven semantic relation.
   Keep inference, user confirmation, sources, and uncertainty distinct.

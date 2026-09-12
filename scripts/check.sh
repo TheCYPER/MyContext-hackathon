@@ -30,7 +30,7 @@ case "${1:---staged}" in
 esac
 
 [ -f "$SNAPSHOT/package.json" ] || { echo 'check: no source snapshot; stage new files first' >&2; exit 1; }
-for required in tests/setup.test.rb tests/install-skills.test.rb tests/retrieval.test.rb; do
+for required in tests/setup.test.rb tests/install-skills.test.rb tests/retrieval.test.rb tests/global-binding.test.rb tests/capture.test.rb; do
   [ -f "$SNAPSHOT/$required" ] || { echo "check: required test is missing: $required" >&2; exit 1; }
 done
 ruby "$SNAPSHOT/scripts/public-check.rb" "$SNAPSHOT"
@@ -44,8 +44,12 @@ done
 for test_file in "$SNAPSHOT"/tests/*.sh; do
   [ ! -f "$test_file" ] || bash "$test_file" "$SNAPSHOT"
 done
-npm --prefix "$SNAPSHOT" ci --ignore-scripts
-npm --prefix "$SNAPSHOT/dashboard" run test:run
-npm --prefix "$SNAPSHOT/dashboard" run build
-node --test "$SNAPSHOT"/dashboard/test/*.test.mjs
-echo 'check: OK (source boundary, templates, setup, retrieval, installation, dashboard build and tests)'
+(
+  # Resolve npm workspaces from the snapshot, including when TMPDIR is a symlink.
+  cd -- "$SNAPSHOT"
+  npm ci --ignore-scripts
+  npm --prefix dashboard run test:run
+  npm --prefix dashboard run build
+  node --test dashboard/test/*.test.mjs
+)
+echo 'check: OK (source boundary, templates, setup, retrieval, installation, capture, dashboard build and tests)'
