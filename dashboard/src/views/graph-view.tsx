@@ -15,8 +15,7 @@ import {
   layoutFocusGraph,
   shortestPath,
 } from "../lib/model.mjs";
-import type { Relation } from "../lib/model.mjs";
-import type { DashboardSnapshot, GraphNode } from "../types";
+import type { DashboardSnapshot } from "../types";
 import { SectionHeading } from "./section-heading";
 
 export function GraphView({
@@ -48,9 +47,10 @@ export function GraphView({
     includeRejected,
     includeOutOfValidity,
   }), [allRelations, predicate, review, evidence, includeRejected, includeOutOfValidity]);
-  const [focusId, setFocusId] = useState(
-    () => chooseFocusNode(nodes, relations, initialFocusId) as string | null,
+  const [preferredFocusId, setFocusId] = useState(
+    () => chooseFocusNode(nodes, relations, initialFocusId),
   );
+  const focusId = chooseFocusNode(nodes, relations, preferredFocusId);
   const [depth, setDepth] = useState<1 | 2>(1);
   const [selectedRelationId, setSelectedRelationId] = useState<string | null>(
     null,
@@ -69,9 +69,15 @@ export function GraphView({
   }, [relations, pathMode, initialFocusId]);
 
   useEffect(() => {
-    if (initialFocusId && nodes.some((node) => node.id === initialFocusId))
-      setFocusId(initialFocusId);
-  }, [initialFocusId, nodes]);
+    if (initialFocusId) setFocusId(initialFocusId);
+  }, [initialFocusId]);
+
+  useEffect(() => {
+    if (preferredFocusId !== focusId) setFocusId(focusId);
+    setTargetId((current) =>
+      nodes.some((node) => node.id === current && node.id !== focusId) ? current : "",
+    );
+  }, [nodes, focusId, preferredFocusId]);
 
   if (!nodes.length || !focusId)
     return (
@@ -87,30 +93,24 @@ export function GraphView({
       </section>
     );
 
-  const layout = layoutFocusGraph(nodes, relations, focusId, depth) as {
-    nodes: GraphNode[];
-    relations: Relation[];
-    positions: Map<
-      string,
-      { x: number; y: number; width: number; height: number }
-    >;
-    width: number;
-    height: number;
-    distances: Map<string, number>;
-  };
+  const layout = layoutFocusGraph(nodes, relations, focusId, depth, {
+    retainIds: path?.nodeIds,
+  });
   const focus = nodes.find((node) => node.id === focusId)!;
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const trace = () => {
     setTraceAttempted(true);
     setPath(
       targetId ? shortestPath(nodes, relations, focusId, targetId, {
-        mode: pathMode, includeRejected, includeOutOfValidity,
+        // Display overrides allow inspection, but never support a trace.
+        mode: pathMode,
       }) : null,
     );
   };
   const changeFocus = (id: string) => {
     setFocusId(id);
     setSelectedRelationId(null);
+    if (path?.nodeIds.includes(id)) return;
     setTargetId("");
     setPath(null);
     setTraceAttempted(false);
@@ -216,7 +216,7 @@ export function GraphView({
           </div>
           <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
             The aperture highlights at most two hops through visible recorded
-            relationships. Typed predicates retain their recorded meaning and direction;
+            relationships and retains every record in a traced path. Typed predicates retain their recorded meaning and direction;
             legacy links record a connection without a structured reason.
           </p>
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
@@ -243,7 +243,7 @@ export function GraphView({
           </div>
           <div className="mt-4 bg-muted/55 p-4 lg:hidden">
             <h3 className="text-sm font-medium">
-              Records within {depth === 1 ? "one hop" : "two hops"}
+              {path ? "Records in view" : `Records within ${depth === 1 ? "one hop" : "two hops"}`}
             </h3>
             <ul className="mt-2 grid min-w-0 gap-1">
               {nearbyNodes.map((node) => (
@@ -257,7 +257,7 @@ export function GraphView({
                   >
                     <span className="truncate text-left">{node.title}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {layout.distances.get(node.id)} hop
+                      {layout.distances.get(node.id) === null ? "Retained" : `${layout.distances.get(node.id)} hop`}
                     </span>
                   </Button>
                 </li>

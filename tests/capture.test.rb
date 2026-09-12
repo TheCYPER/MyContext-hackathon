@@ -172,6 +172,37 @@ class ContextCaptureTest < Minitest::Test
     assert_equal saved, head
   end
 
+  def test_captured_explicit_sources_grow_the_committed_graph_without_inferred_links
+    enable
+    snapshot = lambda do
+      output, error, status = Open3.capture3(ENVIRONMENT, RbConfig.ruby,
+        File.join(SOURCE, "dashboard", "projector.rb"), @root)
+      assert status.success?, error
+      JSON.parse(output)
+    end
+    before = snapshot.call
+    data = payload("session-source-reference")
+    data["links"] = []
+    data["facts"].first["source"] = "context:profile.summary"
+    result, status = run_capture(data)
+    assert status.success?
+    assert_equal "committed", result["outcome"]
+    after = snapshot.call
+    assert_equal before["graph"]["nodes"].length + 1, after["graph"]["nodes"].length
+    assert_equal result["commit"], after["revision"]
+    reference = after["graph"]["edges"].find { |edge| edge["provenance"] == "frontmatter.sources" }
+    refute_nil reference
+    assert_equal "profile.summary", reference["to"]
+    assert_equal "untyped", reference["semanticStatus"]
+    assert_equal "not_represented", reference["review"]
+    captured = after["entities"].find { |entity| entity["path"] == result["path"] }
+    assert_empty captured["links"]
+    assert_includes captured["body"], "[inference]"
+    replay, = run_capture(data)
+    assert_equal "already_committed", replay["outcome"]
+    assert_equal after["graph"], snapshot.call["graph"]
+  end
+
   def test_staged_and_untracked_user_edits_are_preserved_and_queue_blocks_auto
     enable
     before = head

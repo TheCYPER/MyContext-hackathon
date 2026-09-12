@@ -242,6 +242,33 @@ def graph_for(entities, relation_exclusions = nil, relation_id_counts: nil)
   end
   edges.concat(legacy_edges_by_key.values)
 
+  # A context source is an explicitly recorded reference, not an inferred
+  # assertion about either endpoint. Preserve its provenance separately from
+  # links and typed relations, and resolve only against visible committed IDs.
+  entities.each do |entity|
+    entity["sources"].uniq.each do |source|
+      match = source.match(/\Acontext:([a-z0-9][a-z0-9._-]*)\z/)
+      next unless match
+      target_id = match[1]
+      next if target_id == entity["id"]
+      target = nodes_by_id[target_id]
+      unless target
+        relation_exclusions["unavailableSourceReference"] += 1
+        next
+      end
+      key = [entity["id"], target_id, "frontmatter.sources"].join("\0")
+      edges << {
+        "id" => "edge.#{Digest::SHA256.hexdigest(key)[0, 16]}",
+        "from" => entity["id"], "to" => target_id, "kind" => "related_to",
+        "provenance" => "frontmatter.sources", "declaredBy" => entity["id"],
+        "sourcePath" => entity["path"], "semanticStatus" => "untyped",
+        "evidence" => "reason_not_structured", "review" => "not_represented",
+        "sources" => [source],
+        "privacy" => KnowledgeRelations.effective_privacy(entity["privacy"], target["privacy"])
+      }
+    end
+  end
+
   relation_id_counts ||= entities.flat_map { |entity| entity["_relations"] }
     .group_by { |relation| relation["id"] }.transform_values(&:length)
   entities.each do |entity|
@@ -409,8 +436,14 @@ def build_projection(root)
   excluded["invalidRelation"] += relation_exclusions["invalid"]
   excluded["restrictedRelation"] = relation_exclusions["restricted"]
   excluded["unavailableRelationReference"] = relation_exclusions["unavailableReference"]
+  excluded["unavailableSourceReference"] = relation_exclusions["unavailableSourceReference"]
   projected_entities = entities.map do |entity|
-    entity.reject { |key, _value| key.start_with?("_") }
+    projected = entity.reject { |key, _value| key.start_with?("_") }
+    projected["sources"] = entity["sources"].reject do |source|
+      match = source.match(/\Acontext:([a-z0-9][a-z0-9._-]*)\z/)
+      match && !by_id.key?(match[1])
+    end
+    projected
   end
   {
     "schemaVersion" => 5,

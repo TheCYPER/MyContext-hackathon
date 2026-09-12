@@ -78,6 +78,84 @@ describe("typed relationship compatibility", () => {
     expect(screen.getByRole("heading", { name: "No recorded connection path" })).toBeInTheDocument();
   });
 
+  it.each([rejected, expired])("keeps $title assertions inspectable without using them in a trace", async (target) => {
+    const user = userEvent.setup();
+    render(<GraphView snapshot={typedSnapshot} initialFocusId={alpha.id} />);
+    await user.click(screen.getByLabelText("Include rejected"));
+    await user.click(screen.getByLabelText("Include outside validity"));
+    const graph = screen.getByRole("group", { name: "Focused context relationships" });
+    expect(within(graph).getByRole("button", { name: `Focus on ${target.title}` })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Connection target"), target.id);
+    await user.click(screen.getByRole("button", { name: "Trace" }));
+    expect(screen.getByRole("heading", { name: "No recorded connection path" })).toBeInTheDocument();
+    expect(graph.querySelectorAll(".graph-edge-path")).toHaveLength(0);
+  });
+
+  it("retains every node and edge of a long trace when changing its focus", async () => {
+    const user = userEvent.setup();
+    const pathRecords = Array.from({ length: 5 }, (_, index) => ({
+      ...alpha, id: `project.path-${index}`, title: `Path record ${index}`,
+    }));
+    const pathSnapshot: DashboardSnapshot = {
+      ...typedSnapshot,
+      entities: pathRecords,
+      graph: {
+        nodes: pathRecords.map((record) => ({ ...record, incomingCount: 0, outgoingCount: 0, neighborCount: 0 })),
+        edges: pathRecords.slice(1).map((record, index) => edge(`relation.path-${index}`, record, {
+          from: pathRecords[index].id,
+        })),
+      },
+    };
+    render(<GraphView snapshot={pathSnapshot} initialFocusId={pathRecords[0].id} />);
+    const graph = screen.getByRole("group", { name: "Focused context relationships" });
+    expect(within(graph).queryByRole("button", { name: "Focus on Path record 4" })).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Connection target"), pathRecords[4].id);
+    await user.click(screen.getByRole("button", { name: "Trace" }));
+    expect(graph.querySelectorAll(".graph-node-path")).toHaveLength(5);
+    expect(graph.querySelectorAll(".graph-edge-path")).toHaveLength(4);
+    await user.click(screen.getByRole("button", { name: "Path record 3" }));
+    expect(within(graph).getByRole("button", { name: "Inspect Path record 3" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Connection path" })).toBeInTheDocument();
+    expect(graph.querySelectorAll(".graph-node-path")).toHaveLength(5);
+    expect(graph.querySelectorAll(".graph-edge-path")).toHaveLength(4);
+    await user.click(screen.getByRole("button", { name: "Clear path" }));
+    expect(graph.querySelectorAll(".graph-node-path")).toHaveLength(0);
+    expect(within(graph).queryByRole("button", { name: "Focus on Path record 0" })).not.toBeInTheDocument();
+  });
+
+  it("preserves a valid user focus on refresh and recovers when focused or target records disappear", async () => {
+    const user = userEvent.setup();
+    const view = render(<GraphView snapshot={typedSnapshot} initialFocusId={alpha.id} />);
+    const graph = () => screen.getByRole("group", { name: "Focused context relationships" });
+    await user.click(within(graph()).getByRole("button", { name: "Focus on Beta" }));
+    await user.selectOptions(screen.getByLabelText("Connection target"), expired.id);
+    view.rerender(<GraphView snapshot={{
+      ...typedSnapshot,
+      graph: { ...typedSnapshot.graph, nodes: [...typedSnapshot.graph.nodes] },
+    }} initialFocusId={alpha.id} />);
+    expect(within(graph()).getByRole("button", { name: "Inspect Beta" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Connection target")).toHaveValue(expired.id);
+    await user.click(within(graph()).getByRole("button", { name: "Relationship Alpha → Beta: supports (confirmed)" }));
+    expect(screen.getByRole("heading", { name: "Alpha → Beta" })).toBeInTheDocument();
+
+    const remainingIds = new Set([alpha.id, rejected.id]);
+    const refreshed: DashboardSnapshot = {
+      ...typedSnapshot,
+      entities: records.filter((record) => remainingIds.has(record.id)),
+      graph: {
+        nodes: typedSnapshot.graph.nodes.filter((node) => remainingIds.has(node.id)),
+        edges: edges.filter((relation) => remainingIds.has(relation.from) && remainingIds.has(relation.to)),
+      },
+    };
+    view.rerender(<GraphView snapshot={refreshed} initialFocusId={alpha.id} />);
+    expect(within(graph()).getByRole("button", { name: "Inspect Alpha" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Connection target")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Trace" })).toBeDisabled();
+    expect(screen.queryByRole("heading", { name: "Alpha → Beta" })).not.toBeInTheDocument();
+    view.rerender(<GraphView snapshot={{ ...refreshed, entities: [], graph: { nodes: [], edges: [] } }} initialFocusId={alpha.id} />);
+    expect(screen.getByText("No visible relationship exists yet.")).toBeInTheDocument();
+  });
+
   it("aligns global headings with the compact populated lanes", async () => {
     const user = userEvent.setup();
     render(<GraphView snapshot={typedSnapshot} initialFocusId={alpha.id} />);

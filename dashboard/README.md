@@ -15,7 +15,7 @@ the source root.
 From the MyContext source directory:
 
 ```bash
-npm install
+npm ci
 bash scripts/setup.sh demo
 npm run build
 npm start
@@ -55,7 +55,8 @@ configured context root or write to either repository.
 
 - Markdown and Git are the durable source of truth. The projector reads
   tracked canonical files from **Git `HEAD`**; uncommitted edits do not appear.
-  After an approved context update is committed, refresh the page.
+  The page checks for committed changes every five seconds while visible and
+  when returning to the page. Uncommitted edits remain outside the projection.
 - Canonical records live under `profile/`, `domains/`, `projects/`, `ideas/`,
   `experience/`, `people/`, and `journal/` in the context repository. The graph
   includes visible journal records and review drafts as well as the main entity
@@ -71,7 +72,7 @@ configured context root or write to either repository.
 - The distributed academic scenario is labelled as synthetic. That notice does
   not appear on unmarked personal records.
 
-The relationship view distinguishes two connection classes:
+The relationship view preserves these connection classes:
 
 - A frontmatter `relations` entry is a directed semantic assertion. Its stable ID,
   predicate, evidence, sources, review state, privacy, optional validity dates, and
@@ -80,23 +81,21 @@ The relationship view distinguishes two connection classes:
 - An existing `links` entry remains a legacy, untyped `related_to` connection. It
   can support navigation and undirected connection paths, but it has no structured
   reason, evidence, or review state.
+- Exact `sources: ["context:<stable-id>"]` references create separate untyped
+  recorded source connections. Their provenance remains `frontmatter.sources`;
+  they do not become typed evidence or confirmed assertions automatically.
 
 One- and two-hop neighborhoods can be filtered by predicate, review state,
-evidence availability, and current validity. Open **Filters** to adjust these;
-its summary shows active filters and the number of visible connections. Search
-**Find a record** by title, ID, or type, then choose a result with the mouse or
-Arrow Up/Down and Enter. Choose one or two hops around that record.
+evidence availability, and current validity using the controls above the graph.
+Choose **1 hop** or **Expand to 2** around the focused record. Click a record to
+focus it, click the focused record to inspect it, and select an edge marker to
+inspect its declaration. The graph scrolls when it exceeds the available space;
+record and edge controls also support keyboard activation.
 
-The graph supports dragging to pan, zoom buttons, and **Fit**. With the canvas
-focused, arrow keys pan, `+`/`-` zoom, and `0` or Home resets the view. Ctrl/Cmd +
-wheel zooms while ordinary scrolling continues to move the page. **Connected
-records** provides readable titles and individual assertion buttons, including
-parallel connections, on desktop and mobile.
-
-Expand **Find a path** to select a destination and either follow directed typed
-arrows or navigate both directions across visible connections. Each path step can
-be inspected and returned to without losing the path. The graph highlights the
-portion inside the current neighborhood; the details list contains the full path.
+Select a **Connection target**, choose **Trace mode**, and press **Trace** to
+follow directed typed arrows or navigate both directions across visible
+connections. The graph retains and highlights the complete selected path,
+including records beyond the current neighborhood.
 **Needs you** opens the review drawer while exploring the graph, preserving space
 for the canvas. Escape closes the drawer and returns focus to its button. Paths always omit rejected assertions and
 assertions outside their validity window, even when those edges are visible through

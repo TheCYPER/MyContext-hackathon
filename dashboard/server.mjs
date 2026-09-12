@@ -123,18 +123,33 @@ async function liveRepositoryState(root, projection) {
 }
 async function createProjectionLoader({ root, projectorPath, ruby = "ruby" }) {
   let cached = null;
-  return async function loadProjection() {
-    const revision = await currentRevision(root);
-    if (cached?.revision === revision) return cached;
-    const result = await execFile(ruby, [projectorPath, root], {
-      encoding: "utf8", maxBuffer: 16 * 1024 * 1024, shell: false,
-    });
-    const parsed = JSON.parse(result.stdout);
-    if (parsed.revision !== revision || !Array.isArray(parsed.entities)) {
-      throw new Error("projector returned an inconsistent snapshot");
+  let inFlight = null;
+  async function refreshProjection() {
+    // A capture may commit while Ruby is starting or reading. Only publish a
+    // complete projection of a revision that is still HEAD after projection.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const revision = await currentRevision(root);
+      if (cached?.revision === revision) return cached;
+      const result = await execFile(ruby, [projectorPath, root], {
+        encoding: "utf8", maxBuffer: 16 * 1024 * 1024, shell: false,
+      });
+      const parsed = JSON.parse(result.stdout);
+      if (!/^[0-9a-f]{40}$/.test(parsed.revision) || !Array.isArray(parsed.entities)) {
+        throw new Error("projector returned an inconsistent snapshot");
+      }
+      if (parsed.revision !== revision || await currentRevision(root) !== revision) continue;
+      cached = parsed;
+      return cached;
     }
-    cached = parsed;
-    return cached;
+    throw new Error("context changed repeatedly during projection");
+  }
+  return async function loadProjection() {
+    // Snapshot, graph, repo and detail requests share one expensive projection.
+    // Failed refreshes are cleared so the next request can recover normally.
+    if (!inFlight) {
+      inFlight = refreshProjection().finally(() => { inFlight = null; });
+    }
+    return inFlight;
   };
 }
 async function resolveStaticFile(publicDir, pathname) {
