@@ -7,11 +7,17 @@ which evidence supports a result, and what to do next. Use it with Codex or anot
 local AI assistant to continue a research project, prepare an internship summary,
 or return to a course topic without explaining everything again.
 
-[Get started](#get-started) · [Try a scenario](docs/scenarios.md) ·
+[Watch the demo](#watch-the-demo) · [Get started](#get-started) · [Try a scenario](docs/scenarios.md) ·
 [Install with your AI](docs/getting-started.md#install-with-your-ai) ·
 [中文指南](docs/guide.zh-CN.md)
 
 ![MyContext connects projects, experience, ideas and learning across AI sessions.](docs/assets/hero.svg)
+
+## Watch the demo
+
+A recorded walkthrough of MyContext · 4 min 10 sec.
+
+https://github.com/user-attachments/assets/21dbb683-00e7-41c3-8356-64bcffb37c41
 
 ## See your work in context
 
