@@ -60,4 +60,15 @@ describe("navigation and search", () => {
     await user.click(within(screen.getByRole("dialog", { name: /MyContext/ })).getByRole("button", { name: "Projects" }));
     await waitFor(() => expect(document.getElementById("main-content")).toHaveFocus());
   });
+
+  it("returns focus to the mobile trigger when the drawer is dismissed", async () => {
+    mockApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    const trigger = await screen.findByRole("button", { name: "Open navigation" });
+    await user.click(trigger);
+    await user.click(within(screen.getByRole("dialog", { name: /MyContext/ })).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
 });

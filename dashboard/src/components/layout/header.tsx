@@ -1,5 +1,5 @@
 import { Menu } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { ViewName } from "../../hooks/use-hash-view";
 import type { DashboardSnapshot, Entity, RepoStatus, SearchScope } from "../../types";
@@ -27,12 +27,13 @@ interface HeaderProps {
 
 export function Header(props: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const routeSelected = useRef(false);
   return (
     <header className="sticky top-0 z-30 border-b bg-background/85 px-4 py-3 backdrop-blur-xl sm:px-6">
       <div className="mx-auto flex max-w-7xl items-center gap-2">
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild><Button type="button" variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation"><Menu /></Button></SheetTrigger>
-          <SheetContent side="left" onCloseAutoFocus={(event) => event.preventDefault()}><SheetHeader><SheetTitle><Brand /></SheetTitle></SheetHeader><div className="mt-4"><Navigation view={props.view} capabilities={props.snapshot.capabilities} onSelect={(view) => { setMenuOpen(false); props.onSelectView(view); }} /></div></SheetContent>
+          <SheetContent side="left" onCloseAutoFocus={(event) => { if (routeSelected.current) { event.preventDefault(); routeSelected.current = false; document.getElementById("main-content")?.focus(); } }}><SheetHeader><SheetTitle><Brand /></SheetTitle></SheetHeader><div className="mt-4"><Navigation view={props.view} capabilities={props.snapshot.capabilities} onSelect={(view) => { routeSelected.current = true; setMenuOpen(false); props.onSelectView(view); }} /></div></SheetContent>
         </Sheet>
         <div className="min-w-0 flex-1 md:max-w-xl"><GlobalSearch entities={props.entities} query={props.query} scope={props.scope} onQueryChange={props.onQueryChange} onScopeChange={props.onScopeChange} onOpenEntity={props.onOpenEntity} /></div>
         <div className="ml-auto hidden xl:block"><RepositoryStatus repo={props.repo} snapshot={props.snapshot} error={props.repoError} /></div>
