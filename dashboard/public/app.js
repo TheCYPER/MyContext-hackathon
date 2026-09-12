@@ -56,7 +56,7 @@ state.repoError = repoResult.status === "fulfilled" ? null : readableError(repoR
 state.repo = repoResult.status === "fulfilled" && repoResult.value.repo.revision === snapshot.revision ? repoResult.value.repo : null;
 if (changed) {
 const oldNodes = state.graphNodes; const oldIds = new Set(oldNodes.map((node) => node.id)); const oldEdges = new Set(state.graphRelations.map((edge) => edge.id));
-const active = document.activeElement; const activeId = active?.id; let fieldValue = active instanceof HTMLInputElement ? active.value : null;
+const active = document.activeElement; const activeId = active?.id || (active?.closest?.(".relation-panel") ? "graph-detail-panel" : null); const activeGraphSelector = active?.dataset?.nodeId ? `[data-node-id="${CSS.escape(active.dataset.nodeId)}"]` : active?.dataset?.relationId ? `[data-relation-id="${CSS.escape(active.dataset.relationId)}"]` : null; let fieldValue = active instanceof HTMLInputElement ? active.value : null;
 const selection = fieldValue !== null ? [active.selectionStart, active.selectionEnd] : null;
 const disclosures = [...document.querySelectorAll(".global-overview, .aperture-mobile-trail")].map((el) => [el.className.split(" ")[0], el.open]);
 const inspectorId = dom.inspector.open ? dom.inspector.dataset.entityId : null;
@@ -81,6 +81,7 @@ state.loadError = null; updateCapabilityNavigation(); dom.demoLabel.hidden = !is
 renderMargin(); renderView(); renderSearchResults();
 for (const [className, open] of disclosures) { const element = document.querySelector(`.${className}`); if (element) element.open = open; }
 if (activeId) { const replacement = document.getElementById(activeId); if (replacement) { if (fieldValue !== null) { replacement.value = fieldValue; if (selection?.[0] !== null) replacement.setSelectionRange?.(...selection); } replacement.focus({ preventScroll: true }); } }
+if (activeGraphSelector) { const replacement = document.querySelector(activeGraphSelector) || document.querySelector(".aperture-canvas"); replacement?.focus({ preventScroll: true }); }
 if (inspectorId) {
 if (state.entityById.has(inspectorId)) openEntity(inspectorId);
 else { delete dom.inspector.dataset.entityId; dom.inspectorTitle.textContent = "Record no longer available"; dom.inspectorKicker.textContent = "Context updated"; dom.inspectorRevision.textContent = shortRevision(snapshot.revision);
@@ -432,7 +433,7 @@ const relations = visibleGraphRelations();
 const focus = state.graphNodeById.get(state.focusId); const layout = currentGraphLayout(); const frame = make("div", "aperture-frame");
 const toolbar = make("div", "aperture-toolbar"); const identity = make("div", "aperture-focus-identity");
 identity.append(make("span", "eyebrow", "Current focus"), make("strong", "", focus?.title || "No focus"),
-make("span", "relation-boundary", `${layout.nodes.length} records · ${layout.relations.length} connections in view`));
+make("span", "relation-boundary", `${layout.nodes.length} records · ${layout.relations.length} connections in view${state.graphRetainedIds.length ? " · expanded" : ""}`));
 const controls = make("div", "aperture-controls"); const depthGroup = make("div", "aperture-depth");
 depthGroup.setAttribute("role", "group"); depthGroup.setAttribute("aria-label", "Relationship depth");
 for (const depth of [1, 2]) {
@@ -443,27 +444,28 @@ button.addEventListener("click", () => { state.focusDepth = depth; state.graphRe
 const focusPicker = buildGraphPicker("focus-picker", "Find a record", "Search records…", state.graphNodes, setGraphFocus);
 const inspectFocus = make("button", "aperture-control is-quiet", "Open record ↗"); inspectFocus.type = "button";
 inspectFocus.addEventListener("click", () => openEntity(state.focusId));
-const grow = make("button", "aperture-control graph-grow", "Grow connections +"); grow.type = "button"; grow.disabled = !layout.frontierIds.length;
+const grow = make("button", "aperture-control graph-grow", "Grow connections +"); grow.type = "button"; grow.id = "graph-grow"; grow.disabled = !layout.frontierIds.length;
 grow.title = "Reveal another layer without hiding the records already shown"; grow.addEventListener("click", () => growGraph());
-controls.append(focusPicker.element, depthGroup, grow, inspectFocus); toolbar.append(identity, controls); frame.append(toolbar);
+controls.append(focusPicker.element, depthGroup, grow, inspectFocus);
+if (state.graphRetainedIds.length || state.pathTargetId || state.focusDepth > 1) { const reset = make("button", "aperture-control is-quiet", "Reset view"); reset.type = "button"; reset.id = "graph-reset-view"; reset.title = "Return to one hop around this record; keep your filters"; reset.addEventListener("click", () => setGraphFocus(state.focusId)); controls.append(reset); } toolbar.append(identity, controls); frame.append(toolbar);
 const pathbar = make("div", "aperture-pathbar");
 const targetPicker = buildGraphPicker("path-picker", "Find a connection", "Search a destination…", state.graphNodes.filter((node) => node.id !== state.focusId), traceConnection);
-if (state.pathTargetId) targetPicker.input.value = state.graphNodeById.get(state.pathTargetId)?.title || "";
+if (state.pathTargetId && !Object.hasOwn(state.graphDrafts, "path-picker")) targetPicker.input.value = state.graphNodeById.get(state.pathTargetId)?.title || "";
 const modeField = make("label", "graph-filter-field"); modeField.append(make("span", "graph-field-label", "Path direction"));
 const pathMode = make("select", "connection-mode"); pathMode.setAttribute("aria-label", "Path direction mode");
 pathMode.append(makeOption("undirected", "Either direction"), makeOption("directed", "Follow typed arrows")); pathMode.value = state.pathMode;
 pathMode.addEventListener("change", () => { state.pathMode = pathMode.value; if (state.pathTargetId) traceConnection(state.pathTargetId); }); modeField.append(pathMode);
 const trace = make("button", "aperture-control", "Find path →"); trace.type = "button"; trace.addEventListener("click", targetPicker.apply);
-pathbar.append(targetPicker.element, modeField, trace);
+trace.id = "graph-find-path"; pathbar.append(targetPicker.element, modeField, trace, make("p", "graph-growth-note", "Paths exclude rejected and past/future connections, even when those are visible in your filters."));
 if (state.pathTargetId) { const clear = make("button", "aperture-control is-quiet", "Clear path"); clear.type = "button"; clear.addEventListener("click", clearConnection); pathbar.append(clear); }
 const pathTools = make("details", "graph-path-tools"); pathTools.open = state.graphPathOpen || !!state.pathTargetId; pathTools.addEventListener("toggle", () => { state.graphPathOpen = pathTools.open; });
 const pathToggle = make("summary", "graph-tools-toggle", "Find a path"); pathToggle.append(make("span", "", "Between this focus and another record"));
 pathTools.append(pathToggle, pathbar); frame.append(pathTools, buildRelationFilters());
 if (layout.hiddenNodeCount || (layout.nodes.length >= state.graphLimit && layout.frontierIds.length)) { const limit = make("div", "graph-growth-note"); limit.append(make("span", "", `Showing ${layout.nodes.length} records. More connected records are available. `)); const more = make("button", "aperture-control", "Show 100 more"); more.type = "button"; more.addEventListener("click", () => { state.graphLimit += 100; growGraph(); }); limit.append(more); frame.append(limit); }
 const zoomControls = make("div", "aperture-zoom"); zoomControls.setAttribute("role", "group"); zoomControls.setAttribute("aria-label", "Graph zoom");
-const zoomOut = make("button", "aperture-control", "−"); zoomOut.type = "button"; zoomOut.setAttribute("aria-label", "Zoom out");
-const fit = make("button", "aperture-control is-quiet", "Fit"); fit.type = "button"; fit.title = "Reset zoom and center the graph";
-const zoomIn = make("button", "aperture-control", "+"); zoomIn.type = "button"; zoomIn.setAttribute("aria-label", "Zoom in");
+const zoomOut = make("button", "aperture-control", "−"); zoomOut.type = "button"; zoomOut.id = "graph-zoom-out"; zoomOut.setAttribute("aria-label", "Zoom out");
+const fit = make("button", "aperture-control is-quiet", "Fit"); fit.type = "button"; fit.id = "graph-fit"; fit.title = "Reset zoom and center the graph";
+const zoomIn = make("button", "aperture-control", "+"); zoomIn.type = "button"; zoomIn.id = "graph-zoom-in"; zoomIn.setAttribute("aria-label", "Zoom in");
 const zoomReadout = make("output", "graph-zoom-value", `${Math.round(state.graphZoom * 100)}%`); zoomReadout.setAttribute("aria-label", "Zoom level");
 zoomControls.append(zoomOut, zoomReadout, zoomIn, fit);
 
@@ -499,7 +501,7 @@ return layoutFocusGraph(state.graphNodes, visibleGraphRelations(), state.focusId
 }
 function growGraph(fromId = null) {
 const layout = currentGraphLayout(); const growth = expandGraphNeighborhood(state.graphNodes, visibleGraphRelations(), layout.nodes.map((node) => node.id), { fromIds: fromId ? [fromId] : layout.frontierIds, maxNodes: state.graphLimit });
-state.graphRetainedIds = growth.nodeIds; resetGraphViewport(); renderViewAndFocus(".graph-grow");
+state.graphRetainedIds = growth.nodeIds; resetGraphViewport(); renderViewAndFocus(growth.frontierIds.length ? ".graph-grow" : ".aperture-canvas");
 announce(growth.addedIds.length ? `Added ${growth.addedIds.length} connected records; ${growth.nodeIds.length} now visible` : "All available connections at this limit are visible");
 }
 
@@ -677,7 +679,7 @@ window.requestAnimationFrame(() => { if (window.matchMedia("(max-width: 1200px)"
 announce("Connection details opened"); }
 
 function renderRelationPanel() {
-const panel = make("aside", "relation-panel"); panel.tabIndex = -1; panel.setAttribute("aria-live", "polite");
+const panel = make("aside", "relation-panel"); panel.id = "graph-detail-panel"; panel.tabIndex = -1; panel.setAttribute("aria-live", "polite");
 const relation = state.graphRelations.find((candidate) => candidate.id === state.selectedRelationId);
 if (relation) { const close = make("button", "aperture-control is-quiet graph-close-detail", state.pathTargetId ? "← Back to path" : "← Back to focus"); close.type = "button";
 close.addEventListener("click", () => { state.selectedRelationId = null; renderViewAndFocus(".relation-panel"); }); panel.append(close, renderWhyConnected(relation)); return panel; }
@@ -730,8 +732,9 @@ make("p", "relation-panel-copy", typed ? "This is an explicit directed assertion
 const ledger = make("dl", "relation-ledger"); ledger.append(make("dt", "", "Predicate"), make("dd", `relation-value is-${safeToken(relation.kind)}`, relation.label || humanize(relation.kind)),
 make("dt", "", "Semantic status"), make("dd", "", typed ? "Typed assertion" : sourceReference ? "Recorded source reference" : "Untyped legacy link"), make("dt", "", "Review"), make("dd", `review-state is-${safeToken(relation.review)}`, humanize(relation.review)),
 make("dt", "", "Privacy"), make("dd", "", relation.privacy || "unknown"));
-if (typed) ledger.append(make("dt", "", "Declared by"), make("dd", "", relation.declaredBy || relation.from),
-make("dt", "", "Source path"), make("dd", "source-path", relation.sourcePath || "Not projected"), make("dt", "", "Valid"), make("dd", "", validityLabel(relation)));
+if (typed || sourceReference) ledger.append(make("dt", "", "Declared by"), make("dd", "", relation.declaredBy || relation.from),
+make("dt", "", "Source path"), make("dd", "source-path", relation.sourcePath || "Not projected"));
+if (typed) ledger.append(make("dt", "", "Valid"), make("dd", "", validityLabel(relation)));
 fragment.append(ledger);
 if (typed || sourceReference) fragment.append(renderEvidenceBlock(relation));
 const declarationList = make("div", "relation-declarations"); declarationList.append(make("h4", "", "Recorded declarations"));
@@ -785,7 +788,7 @@ mode: state.pathMode, includeRejected: false, includeOutOfValidity: false,
 });
 state.selectedRelationId = null; if (state.pathResult?.relationIds.length > 1) state.focusDepth = 2; renderViewAndFocus(".relation-panel");
 announce(state.pathResult ? `Found a ${state.pathResult.relationIds.length}-link connection` : "No connection found"); }
-function clearConnection() { state.graphDrafts["path-picker"] = ""; state.pathTargetId = null; state.pathResult = null; renderViewAndFocus("#path-picker"); }
+function clearConnection() { state.selectedRelationId = null; state.graphDrafts["path-picker"] = ""; state.pathTargetId = null; state.pathResult = null; renderViewAndFocus("#path-picker"); }
 function setGraphFocus(id) { if (!state.graphNodeById.has(id)) return;
 state.graphDrafts = {}; state.focusId = id; state.focusDepth = 1; state.graphRetainedIds = []; state.graphLimit = 200; state.selectedRelationId = null; state.pathTargetId = null; state.pathResult = null;
 resetGraphViewport();

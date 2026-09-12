@@ -499,6 +499,30 @@ test("suggestions expose exact shared context without becoming recorded relation
   assert.deepEqual(suggestRelatedRecords(nodes, relations, "missing"), []);
 });
 
+test("missing focus produces a complete empty layout after records disappear", () => {
+  for (const nodes of [[], [{ id: "remaining" }]]) {
+    const layout = layoutFocusGraph(nodes, [], "removed");
+    assert.deepEqual(layout.nodes, []);
+    assert.deepEqual(layout.frontierIds, []);
+    assert.equal(layout.hiddenNodeCount, 0);
+    assert.equal(layout.positions.size, 0);
+    assert.ok(Number.isFinite(layout.width) && Number.isFinite(layout.height));
+  }
+});
+
+test("suggestions do not use rejected or expired assertions or repropose existing links", () => {
+  const nodes = ["a", "b", "c", "d", "n1", "n2"].map((id) => ({ id }));
+  nodes.find((node) => node.id === "a").tags = ["shared"];
+  nodes.find((node) => node.id === "d").tags = ["shared"];
+  const relations = [
+    { id: "an1", from: "a", to: "n1" }, { id: "an2", from: "a", to: "n2" },
+    { id: "bn1", from: "b", to: "n1" }, { id: "bn2", from: "b", to: "n2", review: "rejected" },
+    { id: "cn1", from: "c", to: "n1" }, { id: "cn2", from: "c", to: "n2", validTo: "2020-01-01" },
+    { id: "ad", from: "a", to: "d", review: "rejected" },
+  ];
+  assert.deepEqual(suggestRelatedRecords(nodes, relations, "a", { at: "2026-09-12" }), []);
+});
+
 test("multiple dense expansion rings keep every card within the canvas and apart", () => {
   const nodes = [{ id: "root", type: "project", title: "Root" }];
   const relations = [];
