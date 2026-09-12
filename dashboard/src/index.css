@@ -80,6 +80,49 @@ body {
   color: var(--foreground);
 }
 
+:root {
+  --graph-background: oklch(0.975 0.008 280);
+  --graph-edge: oklch(0.72 0.035 280);
+  --graph-edge-path: oklch(0.58 0.18 275);
+  --graph-node: oklch(1 0 0);
+  --graph-node-stroke: oklch(0.84 0.025 280);
+  --graph-node-focus: oklch(0.94 0.035 275);
+  --graph-text: oklch(0.26 0.025 280);
+  --graph-muted: oklch(0.53 0.03 280);
+}
+
+.dark {
+  --graph-background: oklch(0.185 0.018 280);
+  --graph-edge: oklch(0.43 0.035 280);
+  --graph-edge-path: oklch(0.72 0.15 275);
+  --graph-node: oklch(0.235 0.02 280);
+  --graph-node-stroke: oklch(0.36 0.025 280);
+  --graph-node-focus: oklch(0.30 0.07 275);
+  --graph-text: oklch(0.92 0.012 280);
+  --graph-muted: oklch(0.68 0.03 280);
+}
+
+.graph-edge { stroke: var(--graph-edge); stroke-width: 1.5; }
+.graph-edge-path { stroke: var(--graph-edge-path); stroke-width: 3; }
+.graph-edge-global { opacity: 0.45; }
+.graph-node { cursor: pointer; outline: none; }
+.graph-node rect { fill: var(--graph-node); stroke: var(--graph-node-stroke); stroke-width: 1.5; transition: stroke 150ms ease, fill 150ms ease; }
+.graph-node:hover rect, .graph-node:focus-visible rect { stroke: var(--graph-edge-path); stroke-width: 2.5; }
+.graph-node-focus rect { fill: var(--graph-node-focus); stroke: var(--graph-edge-path); stroke-width: 2.5; }
+.graph-node-path rect { stroke: var(--graph-edge-path); stroke-width: 3; }
+.graph-node-title { fill: var(--graph-text); font-size: 13px; font-weight: 600; }
+.graph-node-meta { fill: var(--graph-muted); font-size: 10px; text-transform: uppercase; }
+.graph-relation-control { cursor: pointer; outline: none; }
+.graph-relation-control circle { fill: var(--graph-node); stroke: var(--graph-edge-path); stroke-width: 2; }
+.graph-relation-control text { fill: var(--graph-edge-path); font-size: 9px; }
+.graph-relation-control:focus-visible circle { stroke-width: 4; }
+.graph-lane-title { fill: var(--graph-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.graph-lane-line { stroke: var(--graph-node-stroke); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
+
 button,
 input,
 select {

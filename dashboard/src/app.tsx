@@ -56,7 +56,7 @@ export function App() {
       case "projects": return <RecordsView {...shared} records={visibleEntities} type="project" onOpenGraph={openGraph} />;
       case "experience": return <RecordsView {...shared} records={visibleEntities} type="experience" onOpenGraph={openGraph} />;
       case "runs": return <RunsView snapshot={data.snapshot!} />;
-      case "atlas": return <GraphView snapshot={data.snapshot!} />;
+      case "atlas": return <GraphView snapshot={data.snapshot!} initialFocusId={graphFocusId} onOpenEntity={setSelectedEntityId} />;
       case "system": return <SystemView snapshot={data.snapshot!} repo={data.repo} />;
     }
   };
