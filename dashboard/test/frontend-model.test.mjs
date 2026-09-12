@@ -1,15 +1,9 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { ATLAS_LANES, buildLegacyRelations, chooseFocusNode, focusNeighborhood, layoutAtlas,
   layoutFocusGraph, rankWorkstreams, relationReferences, relationTrail,
   academicContextCounts, isSyntheticDemo, viewAvailable, shortestPath } from "../src/lib/model.mjs";
-
-const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
-const DASHBOARD_DIR = path.resolve(TEST_DIR, "..");
 
 test("workstream rank is derived only from projected fields", () => {
   const ranked = rankWorkstreams([
@@ -154,53 +148,6 @@ test("focus selection and shortest paths use stable graph ordering", () => {
     nodeIds: ["a", "b", "d"], relationIds: ["ab", "bd"],
   });
   assert.equal(shortestPath(nodes, relations, "a", "isolated"), null);
-});
-
-test("frontend keeps projection and mobile review boundaries explicit", async () => {
-  const [app, html, css, server] = await Promise.all([
-    readFile(path.join(DASHBOARD_DIR, "public/app.js"), "utf8"),
-    readFile(path.join(DASHBOARD_DIR, "public/index.html"), "utf8"),
-    readFile(path.join(DASHBOARD_DIR, "public/styles.css"), "utf8"),
-    readFile(path.join(DASHBOARD_DIR, "server.mjs"), "utf8"),
-  ]);
-
-  assert.doesNotMatch(app, /ATLAS_POSITIONS|EDGE_LABELS|CURRENT_FOCUS/);
-  assert.doesNotMatch(app, /research_fit|worked_on|builds_on/);
-  assert.match(app, /role: "group"/);
-  assert.match(app, /aperture-frame/);
-  assert.match(app, /Reason not structured/);
-  assert.match(app, /Incoming backlinks/);
-  assert.match(app, /shortestPath/);
-  assert.match(app, /aperture highlights at most two hops/);
-  assert.match(app, /renderViewAndFocus/);
-  assert.match(app, /data-relation-id/);
-  assert.match(app, /Records within two hops/);
-  assert.match(app, /two-hop.*visible legacy frontmatter links/);
-  assert.match(app, /reverse \?/);
-  assert.match(app, /experience: \(\) => renderRecordsView\("experience"\)/);
-  assert.match(app, /ideas: renderIdeasView/);
-  assert.match(app, /Research ideas/);
-  assert.match(app, /Project ideas/);
-  assert.match(app, /Project description/);
-  assert.match(app, /Advisor help/);
-  assert.match(app, /Work experiences/);
-  assert.match(app, /not finalized, signed, sent, or otherwise recorded as used/);
-  assert.match(app, /dom\.skipLink\.inert = true/);
-  assert.match(app, /setAttribute\("aria-modal", "true"\)/);
-  assert.match(html, /draft record/);
-  assert.match(html, /data-view="experience"/);
-  assert.match(html, /data-view="ideas"/);
-  assert.match(html, /data-view="runs" hidden/);
-  assert.match(app, /viewAvailable\(view, state\.snapshot\?\.capabilities\)/);
-  assert.match(app, /viewAvailable\("runs", state\.snapshot\?\.capabilities\)/);
-  assert.match(app, /dom\.demoLabel\.hidden = !isSyntheticDemo\(state\.entities\)/);
-  assert.match(html, /option value="experience"/);
-  assert.match(html, /option value="idea"/);
-  assert.match(html, /tabindex="-1" aria-label="Close review margin"/);
-  assert.match(css, /\.atlas-node\.is-experience/);
-  assert.match(css, /\.atlas-node\.is-idea/);
-  assert.match(css, /\.idea-trajectory/);
-  assert.match(server, /"\.mjs": "text\/javascript; charset=utf-8"/);
 });
 
 test("unsupported operations stay unavailable regardless of navigation entry point", () => {

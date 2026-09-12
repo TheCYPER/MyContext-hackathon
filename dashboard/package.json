@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node server.mjs",
-    "dev": "concurrently -k -n api,web -c cyan,magenta \"node server.mjs --port 4319\" \"vite\"",
+    "dev": "npm run build && concurrently -k -n api,web -c cyan,magenta \"node server.mjs --port 4319\" \"vite\"",
     "build": "tsc -b && vite build",
     "test": "vitest",
     "test:run": "vitest run",

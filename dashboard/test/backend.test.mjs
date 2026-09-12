@@ -63,7 +63,7 @@ async function rawRequest(requestPath, options = {}) {
   return new Promise((resolve, reject) => {
     const request = http.request({
       host: "127.0.0.1",
-      port,
+      port: options.port ?? port,
       method: options.method || "GET",
       path: requestPath,
       headers: options.headers,
@@ -356,6 +356,29 @@ test("static files are served from the fixed public root", async () => {
   const moduleResponse = await fetch(`${baseUrl}/model.mjs`);
   assert.equal(moduleResponse.status, 200);
   assert.match(moduleResponse.headers.get("content-type"), /^text\/javascript/);
+});
+
+test("default production root serves the built Vite application", async () => {
+  const app = await createDashboardServer({ root: fixtureRoot, projectorPath: PROJECTOR });
+  await new Promise((resolve, reject) => {
+    app.server.once("error", reject);
+    app.server.listen(0, "127.0.0.1", resolve);
+  });
+  const productionPort = app.server.address().port;
+
+  try {
+    const response = await rawRequest("/", { port: productionPort });
+    assert.equal(response.status, 200);
+    assert.match(response.body, /<div id="root"><\/div>/);
+
+    const assetPath = response.body.match(/src="(\/assets\/[^\"]+\.js)"/)?.[1];
+    assert.ok(assetPath, "built index references a JavaScript asset");
+    const asset = await rawRequest(assetPath, { port: productionPort });
+    assert.equal(asset.status, 200);
+    assert.match(asset.headers["content-type"], /^text\/javascript/);
+  } finally {
+    await new Promise((resolve) => app.server.close(resolve));
+  }
 });
 
 test("context selection honors explicit roots, shared configuration, and the legacy alias", async (t) => {

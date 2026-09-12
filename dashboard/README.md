@@ -9,13 +9,16 @@ the owner study, research and build.
 ## Run the demo
 
 Requirements: Node.js 20+, Ruby 2.6+ with Psych, Git 2.28+ and a POSIX shell.
-The dashboard has no npm dependencies to install.
+Install the dashboard's React, shadcn/Radix, Tailwind, and Zustand packages from
+the source root.
 
 From the MyContext source directory:
 
 ```bash
+npm install
 bash scripts/setup.sh demo
-npm --prefix dashboard start
+npm run build
+npm start
 ```
 
 Open <http://127.0.0.1:4318>. The default context is `.local/demo`, resolved
@@ -34,6 +37,15 @@ You can also set `MY_CONTEXT_ROOT`. The older `MYCONTEXT_ROOT` name remains a
 fallback; an explicit `--root` takes precedence over both. Set
 `MYCONTEXT_MARGIN_PORT` to override the default port, or use `--port`.
 The server always binds to `127.0.0.1`.
+
+For frontend development with Vite hot reload and the local API proxy, run:
+
+```bash
+npm run dev
+```
+
+Open <http://127.0.0.1:5173>. Theme selection supports light, dark, and system
+preferences and is persisted locally in the browser with Zustand.
 
 Source code and personal context can stay in separate repositories. For a
 second local instance, choose another port. No browser control can change the
@@ -81,9 +93,11 @@ HTML. The `/api/v1` route version identifies the HTTP contract;
 ## Test
 
 ```bash
-npm --prefix dashboard test
-tests/dashboard-smoke.sh .
+npm test
+npm run build
 ```
 
-Backend tests create fictional temporary Git repositories and use an available
-local port. They do not need access to anyone's personal context repository.
+The full check includes component tests, frontend model tests, backend tests, and
+the production build. Backend tests create fictional temporary Git repositories
+and use an available local port. They do not need access to anyone's personal
+context repository.

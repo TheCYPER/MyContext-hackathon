@@ -44,5 +44,8 @@ done
 for test_file in "$SNAPSHOT"/tests/*.sh; do
   [ ! -f "$test_file" ] || bash "$test_file" "$SNAPSHOT"
 done
+npm --prefix "$SNAPSHOT/dashboard" ci --ignore-scripts
+npm --prefix "$SNAPSHOT/dashboard" run test:run
+npm --prefix "$SNAPSHOT/dashboard" run build
 node --test "$SNAPSHOT"/dashboard/test/*.test.mjs
-echo 'check: OK (source boundary, templates, setup, retrieval, installation, dashboard)'
+echo 'check: OK (source boundary, templates, setup, retrieval, installation, dashboard build and tests)'

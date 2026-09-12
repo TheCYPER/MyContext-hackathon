@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 const execFile = promisify(execFileCallback);
 const THIS_FILE = fileURLToPath(import.meta.url);
 const DASHBOARD_DIR = path.dirname(THIS_FILE);
-const DEFAULT_PUBLIC_DIR = path.join(DASHBOARD_DIR, "public");
+const DEFAULT_PUBLIC_DIR = path.join(DASHBOARD_DIR, "dist");
 const DEFAULT_PROJECTOR = path.join(DASHBOARD_DIR, "projector.rb");
 const DEFAULT_ROOT = path.join(path.dirname(DASHBOARD_DIR), ".local", "demo");
 const BIND_HOST = "127.0.0.1";
@@ -187,7 +187,15 @@ function parseEntityId(pathname) {
 }
 export async function createDashboardServer(options = {}) {
   const root = await resolveRepository(options.root || process.env.MY_CONTEXT_ROOT || process.env.MYCONTEXT_ROOT || DEFAULT_ROOT);
-  const publicDir = await realpath(options.publicDir || DEFAULT_PUBLIC_DIR);
+  let publicDir;
+  try {
+    publicDir = await realpath(options.publicDir || DEFAULT_PUBLIC_DIR);
+  } catch (error) {
+    if (!options.publicDir && error.code === "ENOENT") {
+      throw new Error("Dashboard build is missing. Run: npm run build");
+    }
+    throw error;
+  }
   const projectorPath = await realpath(options.projectorPath || DEFAULT_PROJECTOR);
   const loadProjection = await createProjectionLoader({ root, projectorPath,
     ruby: options.ruby || process.env.MYCONTEXT_RUBY || "ruby" });
