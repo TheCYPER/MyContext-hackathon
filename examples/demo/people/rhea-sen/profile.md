@@ -8,6 +8,15 @@ sources: ["demo:fictional"]
 aliases: ["Rhea Sen", "研究导师"]
 tags: ["academic-contact"]
 links: ["experience.visual-computing-lab", "project.eval-notebook", "project.paper-trail", "idea.evidence-calibration", "draft.advisor-brief", "journal.advisor-prep"]
+relations:
+  - id: "relation.rhea-sen-participates-visual-computing-lab"
+    predicate: "participates_in"
+    target: "experience.visual-computing-lab"
+    evidence: "artifact"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    note: "Curated from this synthetic profile's explicit description of Rhea mentoring Alex's fictional lab research; it does not describe a real person or appointment."
 status: "active"
 ---
 

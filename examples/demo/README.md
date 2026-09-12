@@ -34,6 +34,15 @@ Open the generated `.local/demo/` directory in your local AI assistant after run
 
 Useful answers should cite the current project and relevant historical note, keep ideas separate from active work, and preserve uncertainty. A link alone does not establish authorship, supervision or evidence quality.
 
+The demo also contains ten manually curated typed relation assertions. They cover
+fictional mentor and supervisor participation, internship projects, journal topics,
+a newer evaluation note that supersedes an earlier protocol, and research ideas
+motivated by recorded project problems. Every assertion uses
+`sources: ["demo:fictional"]`; `review: "confirmed"` means the fictional scenario
+statement was curated, not that a real user's claim was verified. Assertions marked
+`evidence: "inference"` remain explicit interpretations. Existing `links` are left
+unchanged and stay untyped.
+
 Research and project ideas use the existing `draft` lifecycle, so an explicit idea lookup uses `--include-drafts`. A current overview can remain `active` after the underlying internship has ended; the body records that completion. The parked CourseQuery exercise requires `--include-archived` when specifically retrieving it.
 
 ## Run the scenario

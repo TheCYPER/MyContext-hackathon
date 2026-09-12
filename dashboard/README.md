@@ -45,7 +45,9 @@ configured context root or write to either repository.
   tracked canonical files from **Git `HEAD`**; uncommitted edits do not appear.
   After an approved context update is committed, refresh the page.
 - Canonical records live under `profile/`, `domains/`, `projects/`, `ideas/`,
-  `experience/`, `people/`, and `journal/` in the context repository.
+  `experience/`, `people/`, and `journal/` in the context repository. The graph
+  includes visible journal records and review drafts as well as the main entity
+  types.
 - `restricted` records and all `sources/session-exports/` are excluded.
   Both `public` and `private` canonical records can appear locally.
 - Drafts appear for human review and stay drafts. The dashboard cannot approve,
@@ -57,11 +59,66 @@ configured context root or write to either repository.
 - The distributed academic scenario is labelled as synthetic. That notice does
   not appear on unmarked personal records.
 
-The relationship view follows existing frontmatter `links`. It supports
-backlinks, one- and two-hop neighborhoods, and connection paths. Each edge is
-a generic `related_to` link: its reason, evidence, and review status are not yet
-structured. A path shows which records are connected; it does not establish
-causality, endorsement, or personal fit.
+The relationship view distinguishes two connection classes:
+
+- A frontmatter `relations` entry is a directed semantic assertion. Its stable ID,
+  predicate, evidence, sources, review state, privacy, optional validity dates, and
+  note remain attached to the edge. Parallel assertions between the same records
+  remain separate.
+- An existing `links` entry remains a legacy, untyped `related_to` connection. It
+  can support navigation and undirected connection paths, but it has no structured
+  reason, evidence, or review state.
+
+One- and two-hop neighborhoods can be filtered by predicate, review state,
+evidence availability, and current validity. Open **Filters** to adjust these;
+its summary shows active filters and the number of visible connections. Search
+**Find a record** by title, ID, or type, then choose a result with the mouse or
+Arrow Up/Down and Enter. Choose one or two hops around that record.
+
+The graph supports dragging to pan, zoom buttons, and **Fit**. With the canvas
+focused, arrow keys pan, `+`/`-` zoom, and `0` or Home resets the view. Ctrl/Cmd +
+wheel zooms while ordinary scrolling continues to move the page. **Connected
+records** provides readable titles and individual assertion buttons, including
+parallel connections, on desktop and mobile.
+
+Expand **Find a path** to select a destination and either follow directed typed
+arrows or navigate both directions across visible connections. Each path step can
+be inspected and returned to without losing the path. The graph highlights the
+portion inside the current neighborhood; the details list contains the full path.
+**Needs you** opens the review drawer while exploring the graph, preserving space
+for the canvas. Escape closes the drawer and returns focus to its button. Paths always omit rejected assertions and
+assertions outside their validity window, even when those edges are visible through
+inspection filters. A path
+describes recorded connectivity; it does not establish causality, endorsement, or
+personal fit. The projector never infers a typed relation from a legacy link or
+from body text.
+
+Typed assertions use the record containing `relations` as their subject. The
+supported predicates are `participates_in`, `part_of`, `about`, `motivated_by`,
+`supports`, `contradicts`, and `supersedes`; endpoint types are validated against
+the schema. `supersedes` requires two records of the same type. Evidence and review
+are independent: `inference` labels an interpretation, while `confirmed` says the
+assertion itself was reviewed. Optional `valid_from` and `valid_to` values are ISO
+dates and bound when the assertion applies. A projected edge uses the strictest
+privacy of the assertion, its two endpoint records, and any canonical `context:*`
+source records it cites. An assertion is omitted when one of those context sources
+is missing or excluded from the projection.
+
+| Predicate | Allowed subject types | Allowed target types |
+| --- | --- | --- |
+| `participates_in` | person, profile | project, experience, domain, idea |
+| `part_of` | project, experience, idea | project, experience, domain |
+| `about` | journal, draft, idea | any canonical record type |
+| `motivated_by` | project, idea | project, idea, experience, person, journal, domain |
+| `supports`, `contradicts` | any canonical record type | any other canonical record |
+| `supersedes` | any type except profile | another record of the same type |
+
+All predicates reject self-relations and missing targets. Evidence is one of
+`artifact`, `first_party`, `user_confirmed`, `external_primary`,
+`external_secondary`, or `inference`; it describes the support, not a numeric trust
+score. Review is `unreviewed`, `confirmed`, or `rejected` and remains independent
+of evidence. Source locators must be non-empty, and the demo uses only
+`demo:fictional`.
 
 ## Local API
 
@@ -69,20 +126,54 @@ causality, endorsement, or personal fit.
 GET /api/v1/health
 GET /api/v1/repo
 GET /api/v1/snapshot
+GET /api/v1/graph
 GET /api/v1/entities/:id
 ```
 
-Responses carry the current Git revision. The API has no mutation, shell,
+`/api/v1/graph` returns the graph, predicate registry, current revision, and
+projection boundaries without duplicating every entity body. Entity requests can
+include `?revision=<40-character-commit>`; the server returns `409 revision_changed`
+if `HEAD` changed after the caller loaded the graph. Responses carry the current
+Git revision. The API has no mutation, shell,
 email, scheduling, or arbitrary-file endpoint. The browser loads no remote
 assets or previews and displays Markdown as text without executing embedded
 HTML. The `/api/v1` route version identifies the HTTP contract;
-`schemaVersion` independently identifies the projected document shape.
+`schemaVersion: 5` independently identifies the projected document shape.
+
+## Query the graph from the command line
+
+`scripts/query-graph.sh` projects the selected context's committed `HEAD`, using
+the same privacy and schema rules as the dashboard. Select the context with an
+absolute `--root` or `MY_CONTEXT_ROOT` path, then request a neighborhood or path:
+
+```bash
+bash scripts/query-graph.sh --root "$PWD/.local/demo" --json \
+  neighbors person.rhea-sen
+bash scripts/query-graph.sh --root "$PWD/.local/demo" --include-inference --include-drafts --json \
+  path idea.evidence-calibration project.eval-notebook
+```
+
+`neighbors ID` defaults to one hop and accepts `--depth 1..3`. `path START TARGET`
+finds the shortest recorded path within three hops by default and accepts
+`--max-hops 1..6`. Both commands accept `--direction outgoing|incoming|both`, an
+exact `--predicate`, and `--as-of YYYY-MM-DD`; `--json` includes the revision,
+nodes, complete edge metadata, applied filters, and traversal direction.
+
+By default the query includes current, confirmed, non-inference typed assertions
+and excludes restricted, inference-evidence, rejected, unreviewed, legacy, draft,
+and archived graph data. The explicit `--include-unreviewed`,
+`--include-rejected`, `--include-legacy`,
+`--include-inference`, `--include-drafts`, and `--include-archived` switches widen
+those boundaries. Review and inference filters are independent: an unreviewed
+inference needs both corresponding switches.
+Restricted data is always excluded. The human-readable output is intentionally
+compact; use `--json` when evidence and provenance must be inspected.
 
 ## Test
 
 ```bash
 npm --prefix dashboard test
-tests/dashboard-smoke.sh .
+bash scripts/query-graph.sh --root "$PWD/.local/demo" --json neighbors person.rhea-sen
 ```
 
 Backend tests create fictional temporary Git repositories and use an available

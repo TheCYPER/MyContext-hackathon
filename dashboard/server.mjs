@@ -236,13 +236,29 @@ export async function createDashboardServer(options = {}) {
         sendJson(response, 200, { ok: true, snapshot: publicSnapshot(projection) }, headOnly);
         return;
       }
+      if (pathname === "/api/v1/graph") {
+        const projection = await loadProjection();
+        sendJson(response, 200, { ok: true, schemaVersion: projection.schemaVersion,
+          revision: projection.revision, graph: projection.graph,
+          boundaries: projection.boundaries }, headOnly);
+        return;
+      }
       const entityId = parseEntityId(pathname);
       if (entityId === false) {
         apiError(response, 400, "invalid_entity_id", "Entity ID is invalid", headOnly);
         return;
       }
       if (entityId) {
+        const requestedRevision = url.searchParams.get("revision");
+        if (requestedRevision !== null && !/^[0-9a-f]{40}$/.test(requestedRevision)) {
+          apiError(response, 400, "invalid_revision", "Revision must be a Git commit ID", headOnly);
+          return;
+        }
         const projection = await loadProjection();
+        if (requestedRevision && requestedRevision !== projection.revision) {
+          apiError(response, 409, "revision_changed", "Context changed; refresh the page before opening this record", headOnly);
+          return;
+        }
         const entity = projection.entities.find((candidate) => candidate.id === entityId);
         if (!entity) {
           apiError(response, 404, "entity_not_found", "Entity not found", headOnly);

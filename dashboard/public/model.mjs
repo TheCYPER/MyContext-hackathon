@@ -1,10 +1,12 @@
 export const ATLAS_LANES = Object.freeze([
-  { type: "domain", label: "Domains", x: 36, width: 190 },
-  { type: "idea", label: "Ideas", x: 266, width: 220 },
-  { type: "project", label: "Projects", x: 526, width: 220 },
-  { type: "experience", label: "Experience", x: 786, width: 220 },
-  { type: "person", label: "People", x: 1046, width: 220 },
-  { type: "profile", label: "Profile", x: 1306, width: 190 },
+  { type: "domain", label: "Domains", x: 36, width: 176 },
+  { type: "idea", label: "Ideas", x: 244, width: 196 },
+  { type: "project", label: "Projects", x: 472, width: 196 },
+  { type: "experience", label: "Experience", x: 700, width: 196 },
+  { type: "person", label: "People", x: 928, width: 196 },
+  { type: "profile", label: "Profile", x: 1156, width: 176 },
+  { type: "journal", label: "Journal", x: 1364, width: 196 },
+  { type: "draft", label: "Drafts", x: 1592, width: 196 },
 ]);
 
 const STATUS_ORDER = Object.freeze({ active: 0, draft: 1, archived: 2 });
@@ -17,6 +19,13 @@ export const LEGACY_RELATION_BOUNDARY = Object.freeze({
   evidence: "reason_not_structured",
   review: "not_represented",
 });
+
+export const TYPED_RELATION_KINDS = Object.freeze([
+  "participates_in", "part_of", "about", "motivated_by", "supports",
+  "contradicts", "supersedes",
+]);
+
+export const RELATION_REVIEWS = Object.freeze(["unreviewed", "confirmed", "rejected"]);
 
 function array(value) {
   return Array.isArray(value) ? value : [];
@@ -73,6 +82,7 @@ export function buildLegacyRelations(entities, projectedEdges = []) {
           from,
           to,
           kind: LEGACY_RELATION_BOUNDARY.kind,
+          semanticStatus: "untyped",
           provenance: "legacy_link",
           projectedProvenance: projected?.provenance || null,
           evidence: LEGACY_RELATION_BOUNDARY.evidence,
@@ -94,11 +104,73 @@ export function buildLegacyRelations(entities, projectedEdges = []) {
   })).sort(compareRelations);
 }
 
+/**
+ * Build the complete projected relation set. Typed assertions are authoritative
+ * and remain directed, including parallel predicates and independently sourced
+ * assertions between the same records. Legacy `links` keep their historical
+ * pair-level behavior for older snapshots.
+ */
+export function buildRelations(entities, projectedEdges = []) {
+  const visibleIds = new Set(array(entities).map((entity) => entity?.id).filter(Boolean));
+  const typed = [];
+  const projectedLegacy = [];
+
+  for (const edge of array(projectedEdges)) {
+    if (!edge?.id || !visibleIds.has(edge.from) || !visibleIds.has(edge.to) || edge.from === edge.to) continue;
+    const isTyped = edge.semanticStatus === "typed" || TYPED_RELATION_KINDS.includes(edge.kind);
+    if (!isTyped) {
+      projectedLegacy.push(edge);
+      continue;
+    }
+    if (!TYPED_RELATION_KINDS.includes(edge.kind)) continue;
+    typed.push({
+      ...edge,
+      semanticStatus: "typed",
+      provenance: edge.provenance || "frontmatter.relations",
+      review: RELATION_REVIEWS.includes(edge.review) ? edge.review : "unreviewed",
+      evidence: edge.evidence ?? null,
+      sources: array(edge.sources),
+      declarations: array(edge.declarations).length
+        ? array(edge.declarations).map(({ from, to }) => ({ from, to }))
+        : [{ from: edge.from, to: edge.to }],
+    });
+  }
+
+  return [...buildLegacyRelations(entities, projectedLegacy), ...typed].sort(compareRelations);
+}
+
+export function relationIsCurrent(relation, at = new Date()) {
+  const instant = at instanceof Date ? at.getTime() : Date.parse(at);
+  const now = Number.isFinite(instant) ? instant : Date.now();
+  const starts = relation?.validFrom ? Date.parse(relation.validFrom) : NaN;
+  let ends = relation?.validTo ? Date.parse(relation.validTo) : NaN;
+  if (Number.isFinite(ends) && /^\d{4}-\d{2}-\d{2}$/.test(relation.validTo)) ends += 86_400_000 - 1;
+  return (!Number.isFinite(starts) || starts <= now) && (!Number.isFinite(ends) || ends >= now);
+}
+
+export function filterRelations(relations, filters = {}) {
+  const predicates = new Set(array(filters.predicates));
+  const reviews = new Set(array(filters.reviews));
+  return array(relations).filter((relation) => {
+    if (predicates.size && !predicates.has(relation.kind)) return false;
+    if (reviews.size && !reviews.has(relation.review)) return false;
+    const hasEvidence = relation.evidence !== null && relation.evidence !== undefined &&
+      relation.evidence !== "" && relation.evidence !== LEGACY_RELATION_BOUNDARY.evidence;
+    if (filters.evidence === "present" && !hasEvidence) return false;
+    if (filters.evidence === "missing" && hasEvidence) return false;
+    if (!filters.includeRejected && relation.review === "rejected") return false;
+    if (!filters.includeOutOfValidity && !relationIsCurrent(relation, filters.at)) return false;
+    return true;
+  }).sort(compareRelations);
+}
+
 export function relationReferences(relations, entityId) {
   const outgoing = [];
   const incoming = [];
   for (const relation of array(relations)) {
-    for (const declaration of array(relation.declarations)) {
+    const declarations = array(relation.declarations).length
+      ? array(relation.declarations) : [{ from: relation.from, to: relation.to }];
+    for (const declaration of declarations) {
       if (declaration.from === entityId) {
         outgoing.push({ relation, otherId: declaration.to, direction: "outgoing" });
       }
@@ -116,19 +188,21 @@ export function relationTrail(relations, entityId) {
   const byOther = new Map();
   const references = relationReferences(relations, entityId);
   for (const reference of [...references.outgoing, ...references.incoming]) {
-    const current = byOther.get(reference.otherId) || {
+    const key = `${reference.relation.id}\0${reference.otherId}`;
+    const current = byOther.get(key) || {
       otherId: reference.otherId,
       relation: reference.relation,
       outgoing: false,
       incoming: false,
     };
     current[reference.direction] = true;
-    byOther.set(reference.otherId, current);
+    byOther.set(key, current);
   }
   return [...byOther.values()].map((item) => ({
     ...item,
     direction: item.incoming && item.outgoing ? "mutual" : item.outgoing ? "outgoing" : "incoming",
-  })).sort((left, right) => String(left.otherId).localeCompare(String(right.otherId)));
+  })).sort((left, right) => String(left.otherId).localeCompare(String(right.otherId)) ||
+    compareRelations(left.relation, right.relation));
 }
 
 export function focusNeighborhood(nodes, relations, focusId, depth = 1) {
@@ -148,7 +222,9 @@ export function focusNeighborhood(nodes, relations, focusId, depth = 1) {
       compareRelations(left.relation, right.relation));
   }
 
-  const boundedDepth = Math.max(0, Math.min(2, Number(depth) || 1));
+  const numericDepth = Number(depth);
+  const boundedDepth = Number.isFinite(numericDepth)
+    ? Math.max(0, Math.min(2, Math.floor(numericDepth))) : 1;
   const distances = new Map([[focusId, 0]]);
   const queue = [focusId];
   for (let cursor = 0; cursor < queue.length; cursor += 1) {
@@ -180,27 +256,32 @@ export function focusNeighborhood(nodes, relations, focusId, depth = 1) {
 export function chooseFocusNode(nodes, relations, preferredId = null) {
   const visibleNodes = array(nodes).filter((node) => node?.id);
   if (preferredId && visibleNodes.some((node) => node.id === preferredId)) return preferredId;
-  const degree = new Map(visibleNodes.map((node) => [node.id, 0]));
+  // Focus the record with the broadest neighborhood; several assertions about
+  // the same pair should not outweigh connections to distinct records.
+  const neighbors = new Map(visibleNodes.map((node) => [node.id, new Set()]));
   for (const relation of array(relations)) {
-    if (degree.has(relation?.from) && degree.has(relation?.to)) {
-      degree.set(relation.from, degree.get(relation.from) + 1);
-      degree.set(relation.to, degree.get(relation.to) + 1);
+    if (relation?.from !== relation?.to && neighbors.has(relation?.from) && neighbors.has(relation?.to)) {
+      neighbors.get(relation.from).add(relation.to);
+      neighbors.get(relation.to).add(relation.from);
     }
   }
   return visibleNodes.slice().sort((left, right) =>
-    (degree.get(right.id) || 0) - (degree.get(left.id) || 0) || compareNodes(left, right))[0]?.id || null;
+    neighbors.get(right.id).size - neighbors.get(left.id).size || compareNodes(left, right))[0]?.id || null;
 }
 
-export function shortestPath(nodes, relations, startId, targetId) {
+export function shortestPath(nodes, relations, startId, targetId, options = {}) {
   const nodeIds = new Set(array(nodes).map((node) => node?.id).filter(Boolean));
   if (!nodeIds.has(startId) || !nodeIds.has(targetId)) return null;
   if (startId === targetId) return { nodeIds: [startId], relationIds: [] };
 
   const adjacency = new Map([...nodeIds].map((id) => [id, []]));
-  for (const relation of array(relations)) {
+  const mode = options.mode === "directed" ? "directed" : "undirected";
+  const candidates = filterRelations(relations, options);
+  for (const relation of candidates) {
     if (!nodeIds.has(relation?.from) || !nodeIds.has(relation?.to)) continue;
-    adjacency.get(relation.from).push({ id: relation.to, relationId: relation.id });
-    adjacency.get(relation.to).push({ id: relation.from, relationId: relation.id });
+    if (mode === "directed" && relation.semanticStatus !== "typed") continue;
+    adjacency.get(relation.from).push({ id: relation.to, relationId: relation.id, direction: "forward" });
+    if (mode === "undirected") adjacency.get(relation.to).push({ id: relation.from, relationId: relation.id, direction: "reverse" });
   }
   for (const neighbors of adjacency.values()) {
     neighbors.sort((left, right) => String(left.id).localeCompare(String(right.id)) ||
@@ -213,7 +294,7 @@ export function shortestPath(nodes, relations, startId, targetId) {
     const current = queue[cursor];
     for (const neighbor of adjacency.get(current)) {
       if (previous.has(neighbor.id)) continue;
-      previous.set(neighbor.id, { id: current, relationId: neighbor.relationId });
+      previous.set(neighbor.id, { id: current, relationId: neighbor.relationId, direction: neighbor.direction });
       queue.push(neighbor.id);
     }
   }
@@ -300,8 +381,15 @@ export function layoutAtlas(nodes) {
     ATLAS_LANES.some((lane) => lane.type === node?.type));
   const positions = new Map();
   let longestLane = 0;
+  let nextX = 36;
+  const populatedTypes = new Set(supported.map((node) => node.type));
+  const lanes = ATLAS_LANES.filter((lane) => populatedTypes.has(lane.type)).map((lane) => {
+    const compact = { ...lane, x: nextX };
+    nextX += lane.width + 32;
+    return compact;
+  });
 
-  for (const lane of ATLAS_LANES) {
+  for (const lane of lanes) {
     const laneNodes = supported.filter((node) => node.type === lane.type)
       .sort((left, right) => String(left.title || left.id)
         .localeCompare(String(right.title || right.id)));
@@ -319,8 +407,8 @@ export function layoutAtlas(nodes) {
   return {
     nodes: supported,
     positions,
-    lanes: ATLAS_LANES,
-    width: 1532,
+    lanes,
+    width: Math.max(320, nextX + 4),
     height: Math.max(410, 58 + longestLane * 74 + 28),
   };
 }

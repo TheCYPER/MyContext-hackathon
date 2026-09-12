@@ -8,6 +8,17 @@ sources: ["demo:fictional"]
 aliases: ["Evan Cole", "实习主管"]
 tags: ["academic-contact"]
 links: ["experience.meridian-internship", "project.motion-atlas", "project.asset-review", "project.research-portfolio", "draft.internship-scope"]
+relations:
+  - id: "relation.evan-cole-participates-meridian-internship"
+    predicate: "participates_in"
+    target: "experience.meridian-internship"
+    evidence: "artifact"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    valid_from: "2025-06-16"
+    valid_to: "2025-08-22"
+    note: "Curated from the synthetic internship record naming Evan as the fictional supervisor during this period; it is not evidence of real employment."
 status: "active"
 ---
 

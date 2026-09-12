@@ -45,6 +45,12 @@ class PublicBoundaryTest < Minitest::Test
       assert_equal source == "demo:fictional", accepted?
     end
   end
+  def test_relation_sources_must_also_be_synthetic_in_distributed_context
+    %w[demo:fictional user:2026-01-01].each do |source|
+      write("examples/demo/projects/fixture.md", "---\nsources: [\"demo:fictional\"]\nrelations:\n  - sources: [\"#{source}\"]\n---\n\nFixture\n")
+      assert_equal source == "demo:fictional", accepted?
+    end
+  end
   def test_binary_and_secret_file_extensions_require_explicit_review
     ["docs/notes.jsonl", "docs/key.pem", "docs/image.png"].each do |path|
       write(path, "binary\0fixture")

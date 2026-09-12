@@ -8,6 +8,16 @@ sources: ["demo:fictional"]
 aliases: ["repeated passages", "乐谱重复", "alignment failure"]
 tags: ["research-memory"]
 links: ["project.score-follow", "person.jun-park", "idea.score-ambiguity", "journal.score-baseline"]
+relations:
+  - id: "relation.score-revision-about-scoreline"
+    predicate: "about"
+    target: "project.score-follow"
+    evidence: "artifact"
+    sources: ["demo:fictional"]
+    review: "confirmed"
+    privacy: "private"
+    valid_from: "2026-08-06"
+    note: "Curated from this synthetic journal entry's explicit discussion of the fictional ScoreLine repeated-passage failure."
 status: "active"
 date: "2026-08-06"
 ---
