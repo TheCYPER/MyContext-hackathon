@@ -62,7 +62,9 @@ class ContextSetupTest < Minitest::Test
     refute File.exist?(File.join(root, "source-only.txt"))
     refute File.exist?(File.join(root, ".git", "objects", "info", "alternates"))
     records = Dir.glob(File.join(root, "{profile,domains,projects,ideas,experience,people,journal}", "**", "*.md"))
-    assert_equal 11, records.length
+    expected_records = Dir.glob(File.join(@source, "examples", "demo", "{profile,domains,projects,ideas,experience,people,journal}", "**", "*.md"))
+    assert_equal expected_records.length, records.length
+    assert_operator records.length, :>, 0
     records.each { |path| assert_includes File.read(path), 'sources: ["demo:fictional"]' }
     assert_equal "AGENTS.md", File.readlink(File.join(root, "CLAUDE.md"))
   end
@@ -96,6 +98,33 @@ class ContextSetupTest < Minitest::Test
     assert File.file?(File.join(root, "meta", "write-policy.md"))
     assert_match(/destination already exists/, assert_refused("personal", root))
     assert_equal "1", git(root, "rev-list", "--count", "HEAD")
+  end
+
+  def test_changed_demo_seed_preserves_existing_committed_notes
+    assert_setup("demo")
+    root = File.join(@source, ".local", "demo")
+    note = File.join(root, "my-note.md")
+    File.write(note, "A local note to keep.\n")
+    git(root, "add", "my-note.md")
+    git(root, "commit", "-m", "Keep a local note")
+    before = git(root, "rev-parse", "HEAD")
+    seed = File.join(@source, "examples", "demo", "profile", "summary.md")
+    File.open(seed, "a") { |file| file.puts "An updated fictional academic scenario." }
+    assert_match(/seed is outdated/, assert_refused("demo"))
+    assert_equal before, git(root, "rev-parse", "HEAD")
+    assert_equal "A local note to keep.\n", File.read(note)
+  end
+
+  def test_legacy_demo_requires_an_explicit_preserved_backup
+    assert_setup("demo")
+    root = File.join(@source, ".local", "demo")
+    marker = File.join(root, ".mycontext-setup.json")
+    File.write(marker, JSON.generate({ "format" => 1, "mode" => "demo" }) + "\n")
+    git(root, "add", ".mycontext-setup.json")
+    git(root, "commit", "-m", "Legacy setup marker")
+    before = git(root, "rev-parse", "HEAD")
+    assert_match(/seed is outdated/, assert_refused("demo"))
+    assert_equal before, git(root, "rev-parse", "HEAD")
   end
 
   def test_unsafe_and_ambiguous_destinations_are_refused

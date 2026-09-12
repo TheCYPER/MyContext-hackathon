@@ -33,6 +33,11 @@ read-only API and security checks when changing presentation.
 
 ## Data and contributions
 
+Keep the demo focused on students' academic and professional context: internship
+contributions, research questions, project evidence, coursework and collaboration.
+Write specific current states and unresolved questions so an assistant can resume
+work, rather than filling records with generic tasks or feature-status labels.
+
 Only explicitly fictional examples belong in public fixtures. Use reserved example
 domains when a test needs a contact address. Do not contribute your profile, CV,
 relationship history, raw conversations, third-party documents, or exports.

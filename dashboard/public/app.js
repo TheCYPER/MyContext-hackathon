@@ -1,31 +1,29 @@
 import { buildLegacyRelations, chooseFocusNode, layoutAtlas, layoutFocusGraph,
-relationReferences, relationTrail, rankWorkstreams, shortestPath } from "./model.mjs";
+relationReferences, relationTrail, rankWorkstreams, academicContextCounts, isSyntheticDemo, viewAvailable, shortestPath } from "./model.mjs";
 
 const API = Object.freeze({ snapshot: "/api/v1/snapshot",
 repo: "/api/v1/repo", entity: (id) => `/api/v1/entities/${encodeURIComponent(id)}`,
-}); const VIEW_META = Object.freeze({
-desk: { kicker: "Human checkpoint",
-title: "What needs your judgment?", deck: "Durable work stays on the desk. Drafts and uncertain claims wait in the margin.",
-}, workstreams: {
-kicker: "Durable context", title: "Follow the work, not the activity.",
-deck: "Each line joins a project’s current state, evidence boundary, related people, and next question.", },
-ideas: { kicker: "Candidate trajectories",
-title: "Ideas before commitment.", deck: "Compare research submissions and project seeds without mistaking possibility for active work.", },
-runs: { kicker: "Ephemeral process",
-title: "What is the local harness doing?", deck: "Runs are temporary operations. A completed run never becomes durable context without review.",
-}, people: {
-kicker: "Relationship dossiers", title: "People are context, not leads.",
-deck: "Fit, relationship stage, project evidence, and next action stay visibly separate.", },
-projects: { kicker: "Evidence and boundaries",
-title: "Projects as they actually stand.", deck: "Current capability, negative results, open questions, and linked people remain inspectable.",
-}, experience: { kicker: "Professional record",
-title: "Work, situated in context.", deck: "Roles, responsibilities, evidence, and employer-facing drafts remain linked without turning experience into a project workstream.",
-}, atlas: {
-kicker: "Context aperture", title: "Follow one context thread at a time.",
-deck: "Focus on one record, inspect its nearest links, and ask why before treating proximity as meaning.", },
-system: { kicker: "Local boundary",
-title: "What Margin can—and cannot—see.", deck: "The control surface reads tracked Git state and exposes no mutation, email, or transcript API.",
-}, });
+ });
+const VIEW_META = Object.freeze({
+  desk: { kicker: "Academic & professional context", title: "Keep the context behind your work.",
+    deck: "Projects, research ideas, coursework, and experience, ready for your next conversation with Codex." },
+  workstreams: { kicker: "Project context", title: "Where each project stands.",
+    deck: "Current results, open questions, related people, and the next step recorded for each project." },
+  ideas: { kicker: "Questions worth exploring", title: "Research and project ideas.",
+    deck: "Keep research questions and possible builds connected to the work that prompted them." },
+  runs: { kicker: "Connected operations", title: "Local operations.",
+    deck: "Operations registered with this app. Their output becomes saved context only after review." },
+  people: { kicker: "Working relationships", title: "People behind the work.",
+    deck: "Mentors, collaborators, and instructors, with the projects and conversations that connect you." },
+  projects: { kicker: "Project records", title: "Projects, with their evidence.",
+    deck: "What you built, what you tested, what remains uncertain, and who was involved." },
+  experience: { kicker: "Academic & professional record", title: "Experience in context.",
+    deck: "Internships, research roles, and peer learning, with responsibilities and contributions kept in view." },
+  atlas: { kicker: "Context graph", title: "Explore the connections.",
+    deck: "Follow the links between projects, ideas, experience, and people. Open a record to inspect its context." },
+  system: { kicker: "Local and read-only", title: "How MyContext reads your records.",
+    deck: "Markdown and Git hold the saved context. This dashboard shows the committed version for inspection." },
+});
 const state = { snapshot: null,
 repo: null, entities: [],
 entityById: new Map(), detailCache: new Map(),
@@ -50,6 +48,8 @@ state.focusId = chooseFocusNode(state.graphNodes, state.graphRelations, state.fo
 } if (repoResult.status === "fulfilled") {
 state.repo = repoResult.value.repo; } else {
 state.repoError = readableError(repoResult.reason); }
+updateCapabilityNavigation(); selectInitialView();
+dom.demoLabel.hidden = !isSyntheticDemo(state.entities);
 updateRepositoryStatus(); renderMargin();
 renderView(); finishLoading();
 } function cacheDom() {
@@ -57,6 +57,7 @@ dom.navItems = [...document.querySelectorAll("[data-view]")]; dom.viewKicker = d
 dom.viewTitle = document.getElementById("view-title"); dom.viewDeck = document.getElementById("view-deck");
 dom.viewContent = document.getElementById("view-content"); dom.search = document.getElementById("global-search");
 dom.scope = document.getElementById("scope-filter"); dom.searchResults = document.getElementById("search-results");
+dom.demoLabel = document.getElementById("demo-label");
 dom.searchCluster = document.getElementById("search-cluster"); dom.loadBanner = document.getElementById("load-banner");
 dom.repoOrbit = document.getElementById("repo-orbit"); dom.repoShortStatus = document.getElementById("repo-short-status");
 dom.revisionLabel = document.getElementById("revision-label"); dom.margin = document.getElementById("human-margin");
@@ -90,16 +91,23 @@ dom.search.focus(); }
 if (event.key === "Escape") { closeSearch();
 closeMargin(); }
 } function selectInitialView() {
-const candidate = window.location.hash.replace(/^#/, ""); const view = Object.hasOwn(VIEW_META, candidate) ? candidate : state.activeView;
+const candidate = window.location.hash.replace(/^#/, ""); let view = Object.hasOwn(VIEW_META, candidate) ? candidate : state.activeView;
+if (!viewAvailable(view, state.snapshot?.capabilities)) view = "desk";
 if (view !== state.activeView) { state.activeView = view;
 renderView(); }
 updateNav(); }
 function setView(view) { if (!Object.hasOwn(VIEW_META, view)) return;
+if (!viewAvailable(view, state.snapshot?.capabilities)) view = "desk";
 state.activeView = view; history.replaceState(null, "", `#${view}`);
 closeSearch(); closeMargin();
 updateNav(); renderView();
 document.getElementById("main-content").focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" });
-} function updateNav() {
+} function updateCapabilityNavigation() {
+for (const item of dom.navItems) item.hidden = !viewAvailable(item.dataset.view, state.snapshot?.capabilities);
+if (!viewAvailable(state.activeView, state.snapshot?.capabilities)) state.activeView = "desk";
+updateNav();
+}
+function updateNav() {
 for (const item of dom.navItems) { const active = item.dataset.view === state.activeView;
 item.classList.toggle("is-active", active); if (active) item.setAttribute("aria-current", "page");
 else item.removeAttribute("aria-current"); }
@@ -113,7 +121,7 @@ if (!response.ok || !payload?.ok) { throw new Error(payload?.error?.message || `
 } finally { window.clearTimeout(timeout);
 } }
 function finishLoading() { if (state.loadError) {
-dom.loadBanner.classList.add("is-error"); replaceChildren(dom.loadBanner, make("span", "", `Margin could not project canonical context: ${state.loadError}`));
+dom.loadBanner.classList.add("is-error"); replaceChildren(dom.loadBanner, make("span", "", `MyContext could not project canonical context: ${state.loadError}`));
 return; }
 if (state.repoError) { replaceChildren(dom.loadBanner, make("span", "", `Context loaded; live repository status is unavailable: ${state.repoError}`));
 return; }
@@ -131,7 +139,7 @@ dom.repoShortStatus.textContent = `${branch} · ${revision} · ${stateLabel}`; d
 } function renderView() {
 const meta = VIEW_META[state.activeView] || VIEW_META.desk; dom.viewKicker.textContent = meta.kicker;
 dom.viewTitle.textContent = meta.title; dom.viewDeck.textContent = meta.deck;
-document.title = `${meta.title} · Margin`; if (!state.snapshot) {
+document.title = `${meta.title} · MyContext`; if (!state.snapshot) {
 replaceChildren(dom.viewContent, renderLoadError()); return;
 } const renderers = {
 desk: renderDesk, workstreams: renderWorkstreamsView,
@@ -140,28 +148,51 @@ projects: () => renderRecordsView("project"), experience: () => renderRecordsVie
 system: renderSystemView, };
 replaceChildren(dom.viewContent, renderers[state.activeView]()); }
 function renderDesk() { const fragment = document.createDocumentFragment();
+fragment.append(renderContextIndex());
 const reviewItems = reviewQueue(); const workstreams = prioritizedWorkstreams().slice(0, 4);
 const judgmentSection = make("section", "section-block"); judgmentSection.setAttribute("aria-labelledby", "judgment-heading");
-judgmentSection.append(sectionHeading("judgment-heading", "Waiting at the margin", `${reviewItems.length} read-only review item${reviewItems.length === 1 ? "" : "s"}`)); if (reviewItems.length) {
+judgmentSection.append(sectionHeading("judgment-heading", "Drafts to review", `${reviewItems.length} read-only review item${reviewItems.length === 1 ? "" : "s"}`)); if (reviewItems.length) {
 const list = make("div", "judgment-lead"); for (const item of reviewItems.slice(0, 3)) list.append(renderJudgmentRow(item));
 judgmentSection.append(list); } else {
 judgmentSection.append(renderEmpty("Nothing needs your decision.", "No draft or context change was applied.")); }
-fragment.append(judgmentSection); const workSection = make("section", "section-block");
-workSection.setAttribute("aria-labelledby", "workstream-heading"); workSection.append(sectionHeading("workstream-heading", "Durable workstreams", "Canonical project state · not live task activity"));
-workSection.append(renderWorkstreamBoard(workstreams)); fragment.append(workSection);
+const workSection = make("section", "section-block");
+workSection.setAttribute("aria-labelledby", "workstream-heading"); workSection.append(sectionHeading("workstream-heading", "Project context", "Saved results, questions, and next steps"));
+workSection.append(renderWorkstreamBoard(workstreams)); fragment.append(workSection, judgmentSection);
+if (viewAvailable("runs", state.snapshot?.capabilities)) {
 const runsSection = make("section", "section-block"); runsSection.setAttribute("aria-labelledby", "desk-runs-heading");
 runsSection.append(sectionHeading("desk-runs-heading", "Live runs", "Only operations registered with this local harness")); runsSection.append(renderOperations());
-fragment.append(runsSection); return fragment;
-} function renderWorkstreamsView() {
+fragment.append(runsSection); } return fragment;
+}
+function renderContextIndex() {
+  const counts = academicContextCounts(state.entities);
+  const section = make("nav", "context-index"); section.setAttribute("aria-label", "Academic and professional records");
+  for (const [key, label, view, headingId] of [
+    ["projects", "Projects", "projects"], ["experience", "Experiences", "experience"],
+    ["researchIdeas", "Research ideas", "ideas", "research-ideas-heading"],
+    ["projectIdeas", "Project ideas", "ideas", "project-ideas-heading"],
+  ]) {
+    const button = make("button", "context-index-item"); button.type = "button";
+    button.append(make("strong", "", counts[key]), make("span", "", label));
+    button.addEventListener("click", () => {
+      setView(view);
+      if (headingId) window.requestAnimationFrame(() => {
+        const heading = document.getElementById(headingId);
+        if (heading) { heading.tabIndex = -1; heading.scrollIntoView({ block: "start" }); heading.focus({ preventScroll: true }); }
+      });
+    }); section.append(button);
+  }
+  return section;
+}
+function renderWorkstreamsView() {
 const fragment = document.createDocumentFragment(); const workstreams = prioritizedWorkstreams();
-const intro = make("section", "section-block"); intro.append(sectionHeading("all-workstreams-heading", "Project lines", `${workstreams.length} tracked projects from Git HEAD`));
+const intro = make("section", "section-block"); intro.append(sectionHeading("all-workstreams-heading", "Current projects", `${workstreams.length} saved project records`));
 intro.append(renderWorkstreamBoard(workstreams)); fragment.append(intro);
 return fragment; }
 function renderRunsView() { const fragment = document.createDocumentFragment();
 const section = make("section", "section-block"); section.append(sectionHeading("runs-heading", "App-managed operations", "Ephemeral · never canonical by default"));
 section.append(renderOperations()); fragment.append(section);
 const boundary = make("section", "section-block"); boundary.append(sectionHeading("runs-boundary-heading", "Visibility boundary", "No background transcript watcher"));
-boundary.append(renderBoundaryList([ "Margin does not inspect other Codex or Claude tasks.",
+boundary.append(renderBoundaryList([ "MyContext does not inspect other Codex or Claude tasks.",
 "A future run must be explicitly registered with this local harness before it can appear here.", "Run status exposes phases, inputs, and artifacts—not hidden reasoning.",
 "A completed run still requires human review before any durable context change.", ]));
 fragment.append(boundary); return fragment;
@@ -172,13 +203,13 @@ const fragment = document.createDocumentFragment(); const ideas = state.entities
 const research = ideas.filter((idea) => idea.ideaKind === "research");
 const projects = ideas.filter((idea) => idea.ideaKind === "project");
 const researchSection = make("section", "section-block idea-section");
-researchSection.append(sectionHeading("research-ideas-heading", "Research trajectories", `${research.length} school-ready candidate form${research.length === 1 ? "" : "s"}`));
+researchSection.append(sectionHeading("research-ideas-heading", "Research ideas", `${research.length} research question${research.length === 1 ? "" : "s"} to discuss`));
 if (!research.length) researchSection.append(renderEmpty("No research idea matches this view.", "Change the search text or add a canonical research idea."));
 else { const rail = make("div", "idea-trajectory"); research.forEach((idea, index) => rail.append(renderResearchIdea(idea, index)));
 researchSection.append(rail); }
 const projectSection = make("section", "section-block idea-section");
-projectSection.append(sectionHeading("project-ideas-heading", "Project incubator", `${projects.length} uncommitted product or build seed${projects.length === 1 ? "" : "s"}`));
-if (!projects.length) projectSection.append(renderEmpty("No project idea matches this view.", "Project ideas stay separate from active workstreams until selected."));
+projectSection.append(sectionHeading("project-ideas-heading", "Project ideas", `${projects.length} possible build${projects.length === 1 ? "" : "s"} to explore`));
+if (!projects.length) projectSection.append(renderEmpty("No project idea matches this view.", "Project ideas stay separate from current projects until selected."));
 else { const incubator = make("div", "idea-incubator"); for (const idea of projects) incubator.append(renderProjectIdea(idea));
 projectSection.append(incubator); }
 fragment.append(researchSection, projectSection); return fragment;
@@ -195,7 +226,7 @@ ideaField("Advisor help", idea.submission?.advisorHelp || "No advisor-help state
 body.append(fields, renderIdeaFooter(idea)); article.append(marker, body); return article;
 } function renderProjectIdea(idea) {
 const article = make("article", "project-idea-card"); const signal = make("div", "project-idea-signal");
-signal.append(make("span", "idea-kind", "Project seed"), make("span", "status-label", idea.status || "draft"));
+signal.append(make("span", "idea-kind", "Project idea"), make("span", "status-label", idea.status || "draft"));
 signal.lastChild.dataset.status = safeToken(idea.status); const title = make("button", "idea-title", idea.title); title.type = "button";
 title.addEventListener("click", () => openEntity(idea.id)); article.append(signal, title,
 make("p", "project-idea-summary", idea.summary || "No problem statement is projected."));
@@ -210,7 +241,7 @@ const fragment = document.createDocumentFragment(); const scope = type;
 const records = state.entities .filter((entity) => entity.type === scope && entity.role !== "research")
 .filter(matchesQuery) .sort((a, b) => a.title.localeCompare(b.title));
 const section = make("section", "section-block"); const noun = ({
-person: "dossiers", project: "project records", experience: "work experience records",
+person: "people records", project: "project records", experience: "work experience records",
 })[type] || "canonical records";
 section.append(sectionHeading(`${type}-records-heading`, noun[0].toUpperCase() + noun.slice(1), `${records.length} visible from tracked Git HEAD`)); if (!records.length) {
 section.append(renderEmpty(`No ${noun} match this view.`, "Change the search text or return to all context.")); } else {
@@ -219,7 +250,7 @@ section.append(list); }
 fragment.append(section); return fragment;
 } function renderAtlasView() {
 const fragment = document.createDocumentFragment(); const section = make("section", "section-block");
-section.append(sectionHeading("atlas-heading", "Context aperture", "One hop by default · every edge is a legacy link whose reason is not structured"));
+section.append(sectionHeading("atlas-heading", "Context graph", "One hop by default · connections follow recorded links"));
 if (!state.graphNodes.length) {
 section.append(renderEmpty("No visible relationship exists yet.", "The aperture only uses visible canonical frontmatter links.")); } else {
 state.focusId = chooseFocusNode(state.graphNodes, state.graphRelations, state.focusId);
@@ -248,7 +279,7 @@ ledgerGroup("Excluded by design", [ ["Restricted", boundaries.restricted || "exc
 ["Session exports", boundaries.sources || "excluded"], ["Outreach", boundaries.outreach || "draft-only"],
 ["Operations", boundaries.operations || "not-instrumented"], ]),
 ); fragment.append(ledger);
-const boundary = make("section", "section-block"); boundary.append(sectionHeading("system-boundary-heading", "Stage 1 invariants", "Local and read-only"));
+const boundary = make("section", "section-block"); boundary.append(sectionHeading("system-boundary-heading", "Read-only boundaries", "Local and read-only"));
 boundary.append(renderBoundaryList([ "Canonical entities are parsed from the committed Git HEAD, not dirty working-tree files.",
 "Restricted context and session exports are excluded before data reaches the browser.", "Markdown is displayed as text; embedded HTML is never executed.",
 "No send, schedule, apply, write, shell, or arbitrary-file control is present.", ]));
@@ -277,7 +308,7 @@ inspect.type = "button"; inspect.addEventListener("click", () => openEntity(item
 row.append(inspect); } else {
 row.append(make("span", "section-note", "No visible canonical target")); }
 return row; }
-function renderWorkstreamBoard(workstreams) { if (!workstreams.length) return renderEmpty("No durable workstream is visible.", "Only tracked, non-restricted project records appear here.");
+function renderWorkstreamBoard(workstreams) { if (!workstreams.length) return renderEmpty("No project context is visible.", "Only tracked, non-restricted project records appear here.");
 const board = make("div", "workstream-board"); workstreams.forEach((workstream, index) => {
 const row = make("article", "workstream-row"); row.append(make("div", "workstream-index", String(index + 1).padStart(2, "0")));
 const main = make("div", "workstream-main"); const titleButton = make("button", "text-button", workstream.title || workstream.id);
@@ -291,7 +322,7 @@ node.type = "button"; node.addEventListener("click", () => openEntity(entity.id)
 thread.append(node); }
 if (thread.childElementCount) main.append(thread); }
 row.append(main); const focus = make("div", "workstream-focus");
-focus.append(make("span", "", "Current attention")); focus.append(make("p", "", workstream.nextAction || attentionText(workstream)));
+focus.append(make("span", "", "Recorded next step")); focus.append(make("p", "", workstream.nextAction || attentionText(workstream)));
 row.append(focus); board.append(row);
 }); return board;
 } function renderRecordRow(record) {

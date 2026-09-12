@@ -10,9 +10,9 @@
     >
     <meta
       name="description"
-      content="Margin is the local, read-only context observatory for MyContext."
+      content="MyContext keeps academic and professional context ready for your next conversation with Codex."
     >
-    <title>Margin · Context Observatory</title>
+    <title>MyContext · Academic & professional context</title>
     <link rel="stylesheet" href="/styles.css">
     <script src="/app.js" type="module"></script>
   </head>
@@ -21,48 +21,48 @@
 
     <div class="app-shell" id="app-shell">
       <aside class="index-spine" aria-label="Primary navigation">
-        <div class="brand-lockup" aria-label="Margin, the MyContext control surface">
+        <div class="brand-lockup" aria-label="MyContext, academic and professional context">
           <span class="brand-mark" aria-hidden="true"><span></span></span>
           <span class="brand-copy">
-            <strong>Margin</strong>
-            <small>Context Observatory</small>
+            <strong>MyContext</strong>
+            <small>Work & learning</small>
           </span>
         </div>
 
         <nav class="primary-nav" aria-label="Workspace">
-          <button class="nav-item is-active" type="button" data-view="desk" aria-current="page">
-            <span class="nav-glyph" aria-hidden="true">D</span>
-            <span>Desk</span>
+          <button class="nav-item is-active" type="button" data-view="desk" aria-label="Overview" aria-current="page">
+            <span class="nav-glyph" aria-hidden="true">O</span>
+            <span>Overview</span>
           </button>
-          <button class="nav-item" type="button" data-view="workstreams">
-            <span class="nav-glyph" aria-hidden="true">W</span>
-            <span>Workstreams</span>
+          <button class="nav-item" type="button" data-view="workstreams" aria-label="Current focus">
+            <span class="nav-glyph" aria-hidden="true">F</span>
+            <span>Current focus</span>
           </button>
-          <button class="nav-item" type="button" data-view="ideas">
+          <button class="nav-item" type="button" data-view="ideas" aria-label="Ideas">
             <span class="nav-glyph" aria-hidden="true">I</span>
             <span>Ideas</span>
           </button>
-          <button class="nav-item" type="button" data-view="runs">
+          <button class="nav-item" type="button" data-view="runs" hidden aria-label="Runs">
             <span class="nav-glyph" aria-hidden="true">R</span>
             <span>Runs</span>
           </button>
-          <button class="nav-item" type="button" data-view="people">
+          <button class="nav-item" type="button" data-view="people" aria-label="People">
             <span class="nav-glyph" aria-hidden="true">P</span>
             <span>People</span>
           </button>
-          <button class="nav-item" type="button" data-view="projects">
+          <button class="nav-item" type="button" data-view="projects" aria-label="Projects">
             <span class="nav-glyph" aria-hidden="true">J</span>
             <span>Projects</span>
           </button>
-          <button class="nav-item" type="button" data-view="experience">
+          <button class="nav-item" type="button" data-view="experience" aria-label="Experience">
             <span class="nav-glyph" aria-hidden="true">E</span>
             <span>Experience</span>
           </button>
-          <button class="nav-item" type="button" data-view="atlas">
-            <span class="nav-glyph" aria-hidden="true">A</span>
-            <span>Atlas</span>
+          <button class="nav-item" type="button" data-view="atlas" aria-label="Graph">
+            <span class="nav-glyph" aria-hidden="true">G</span>
+            <span>Graph</span>
           </button>
-          <button class="nav-item" type="button" data-view="system">
+          <button class="nav-item" type="button" data-view="system" aria-label="System">
             <span class="nav-glyph" aria-hidden="true">S</span>
             <span>System</span>
           </button>
@@ -77,7 +77,7 @@
       <section class="control-desk">
         <header class="desk-toolbar">
           <div class="desk-identity">
-            <span class="eyebrow">Local context observatory</span>
+            <span class="eyebrow">Academic & professional context</span>
             <span class="revision-label" id="revision-label">Canonical source · loading</span>
           </div>
 
@@ -124,14 +124,16 @@
           <span>Projecting tracked context from Git HEAD…</span>
         </div>
 
+        <p class="demo-label" id="demo-label" hidden>Synthetic academic scenario · The student, people, institutions, and project histories in this demo are fictional.</p>
+
         <main class="view-stage" id="main-content" tabindex="-1">
           <header class="view-heading">
             <div>
-              <span class="eyebrow" id="view-kicker">Human checkpoint</span>
-              <h1 id="view-title">What needs your judgment?</h1>
+              <span class="eyebrow" id="view-kicker">Your review</span>
+              <h1 id="view-title">Keep the context behind your work.</h1>
             </div>
             <p id="view-deck">
-              Durable work stays on the desk. Candidates wait in the margin.
+              Projects, research ideas, coursework, and experience, ready for your next conversation with Codex.
             </p>
           </header>
           <div id="view-content" aria-live="polite"></div>
@@ -141,7 +143,7 @@
       <aside class="human-margin" id="human-margin" aria-labelledby="margin-title">
         <header class="margin-header">
           <div>
-            <span class="eyebrow">Human checkpoint</span>
+            <span class="eyebrow">Your review</span>
             <h2 id="margin-title">Needs your review</h2>
           </div>
           <span class="queue-count" id="queue-count">0</span>
@@ -157,7 +159,7 @@
 
         <footer class="margin-boundary">
           <span class="boundary-mark" aria-hidden="true"></span>
-          <p><strong>Review only.</strong> Stage 1 cannot send, apply, write, or mark outreach as sent.</p>
+          <p><strong>Review only.</strong> This dashboard cannot send messages or change your records. Review proposed updates with your AI.</p>
         </footer>
       </aside>
     </div>
@@ -184,7 +186,7 @@
     <div class="sr-only" id="live-region" aria-live="polite"></div>
 
     <noscript>
-      <div class="noscript-message">Margin needs JavaScript to project the local read-only context API.</div>
+      <div class="noscript-message">MyContext needs JavaScript to display the local read-only context API.</div>
     </noscript>
   </body>
 </html>

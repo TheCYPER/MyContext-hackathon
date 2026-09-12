@@ -1,13 +1,15 @@
 # MyContext dashboard
 
-Margin is the local, read-only dashboard for MyContext. It projects Markdown
-committed in a context Git repository into a review desk, workstreams, people,
-ideas, experience records, and a relationship graph.
+The MyContext dashboard is a local, read-only view of academic and professional
+context. It projects Markdown committed in a context Git repository into projects,
+internship and work experiences, research and project ideas, collaborators and a
+relationship graph. Codex or another local AI uses the same records while helping
+the owner study, research and build.
 
 ## Run the demo
 
-Requirements: Node.js 20 or later, Ruby with Psych, Git, and ripgrep for setup
-and repository checks. The dashboard has no npm dependencies to install.
+Requirements: Node.js 20+, Ruby 2.6+ with Psych, Git 2.28+ and a POSIX shell.
+The dashboard has no npm dependencies to install.
 
 From the MyContext source directory:
 
@@ -50,8 +52,10 @@ configured context root or write to either repository.
   apply, sign, send, or schedule anything.
 - Work experience stays separate from project workstreams. Candidate ideas
   remain outside active workstreams until a project record is approved.
-- Other AI tasks and transcript stores are not inspected. The Runs view has no
-  connected operation feed.
+- Other AI tasks and transcript stores are not inspected. Runs is hidden unless
+  the API explicitly reports an available operations capability.
+- The distributed academic scenario is labelled as synthetic. That notice does
+  not appear on unmarked personal records.
 
 The relationship view follows existing frontmatter `links`. It supports
 backlinks, one- and two-hop neighborhoods, and connection paths. Each edge is

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { ATLAS_LANES, buildLegacyRelations, chooseFocusNode, focusNeighborhood, layoutAtlas,
   layoutFocusGraph, rankWorkstreams, relationReferences, relationTrail,
-  shortestPath } from "../public/model.mjs";
+  academicContextCounts, isSyntheticDemo, viewAvailable, shortestPath } from "../public/model.mjs";
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DASHBOARD_DIR = path.resolve(TEST_DIR, "..");
@@ -179,8 +179,8 @@ test("frontend keeps projection and mobile review boundaries explicit", async ()
   assert.match(app, /reverse \?/);
   assert.match(app, /experience: \(\) => renderRecordsView\("experience"\)/);
   assert.match(app, /ideas: renderIdeasView/);
-  assert.match(app, /Research trajectories/);
-  assert.match(app, /Project incubator/);
+  assert.match(app, /Research ideas/);
+  assert.match(app, /Project ideas/);
   assert.match(app, /Project description/);
   assert.match(app, /Advisor help/);
   assert.match(app, /Work experiences/);
@@ -190,6 +190,10 @@ test("frontend keeps projection and mobile review boundaries explicit", async ()
   assert.match(html, /draft record/);
   assert.match(html, /data-view="experience"/);
   assert.match(html, /data-view="ideas"/);
+  assert.match(html, /data-view="runs" hidden/);
+  assert.match(app, /viewAvailable\(view, state\.snapshot\?\.capabilities\)/);
+  assert.match(app, /viewAvailable\("runs", state\.snapshot\?\.capabilities\)/);
+  assert.match(app, /dom\.demoLabel\.hidden = !isSyntheticDemo\(state\.entities\)/);
   assert.match(html, /option value="experience"/);
   assert.match(html, /option value="idea"/);
   assert.match(html, /tabindex="-1" aria-label="Close review margin"/);
@@ -197,4 +201,64 @@ test("frontend keeps projection and mobile review boundaries explicit", async ()
   assert.match(css, /\.atlas-node\.is-idea/);
   assert.match(css, /\.idea-trajectory/);
   assert.match(server, /"\.mjs": "text\/javascript; charset=utf-8"/);
+});
+
+test("unsupported operations stay unavailable regardless of navigation entry point", () => {
+  for (const capabilities of [undefined, {}, { operations: false }, { operations: "true" }]) {
+    assert.equal(viewAvailable("runs", capabilities), false);
+    for (const view of ["desk", "workstreams", "ideas", "people", "projects", "experience", "atlas", "system"]) {
+      assert.equal(viewAvailable(view, capabilities), true);
+    }
+  }
+  assert.equal(viewAvailable("runs", { operations: true }), true);
+});
+
+test("synthetic label requires a nonempty collection with exact fictional sources", () => {
+  assert.equal(isSyntheticDemo([{ sources: ["demo:fictional"] }, { sources: ["demo:fictional"] }]), true);
+  for (const entities of [undefined, [], [{}], [{ sources: [] }],
+    [{ sources: ["demo:fictional"] }, { sources: ["user:confirmed"] }],
+    [{ sources: ["demo:fictional", "user:confirmed"] }]]) {
+    assert.equal(isSyntheticDemo(entities), false);
+  }
+});
+
+test("academic navigation counts distinguish research ideas from proposed builds", () => {
+  assert.deepEqual(academicContextCounts([
+    { type: "project", status: "active" }, { type: "project", status: "archived" },
+    { type: "experience" }, { type: "idea", ideaKind: "research" },
+    { type: "idea", ideaKind: "project" }, { type: "idea", ideaKind: "research" },
+    { type: "draft" }, { type: "journal" },
+  ]), { projects: 2, experience: 1, researchIdeas: 2, projectIdeas: 1 });
+  assert.deepEqual(academicContextCounts(null), { projects: 0, experience: 0, researchIdeas: 0, projectIdeas: 0 });
+});
+
+test("academic hubs keep dense one-hop and two-hop labels apart", () => {
+  const nodes = [{ id: "project.hub", type: "project", title: "Experiment notes" }];
+  const relations = [];
+  for (let i = 0; i < 11; i += 1) {
+    const id = `idea.${i}`;
+    nodes.push({ id, type: "idea", title: `Research question ${i}` });
+    relations.push({ id: `hub-${i}`, from: "project.hub", to: id });
+    for (let j = 0; j < 3; j += 1) {
+      const otherId = `person.${i}.${j}`;
+      nodes.push({ id: otherId, type: "person", title: `Collaborator ${i}.${j}` });
+      relations.push({ id: `other-${i}-${j}`, from: id, to: otherId });
+    }
+  }
+  for (const depth of [1, 2]) {
+    const layout = layoutFocusGraph(nodes, relations, "project.hub", depth);
+    const boxes = [...layout.positions.entries()];
+    assert.equal(boxes.length, depth === 1 ? 12 : 45);
+    for (let i = 0; i < boxes.length; i += 1) {
+      const [id, box] = boxes[i];
+      assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= layout.width &&
+        box.y + box.height <= layout.height, `${id} stays on the canvas`);
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const [otherId, other] = boxes[j];
+        assert.equal(box.x < other.x + other.width && box.x + box.width > other.x &&
+          box.y < other.y + other.height && box.y + box.height > other.y, false,
+        `${id} overlaps ${otherId} at depth ${depth}`);
+      }
+    }
+  }
 });

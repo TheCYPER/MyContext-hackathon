@@ -1,18 +1,16 @@
-# Fictional context index
+# Academic and professional context
 
-All records in this demonstration are invented and use `demo:fictional` as their source.
+Read `profile/summary.md` with this index, then choose a route. All records describe the fictional student Alex Lin.
 
-Start with [Demo Builder](profile/summary.md), [Goals](profile/goals.md), and [Preferences](profile/preferences.md).
+| Question | Start here | Expand when needed |
+| --- | --- | --- |
+| What am I working toward? | `profile/goals.md` | One current project |
+| What did I contribute during an internship? | `experience/meridian-internship/overview.md` | Motion Atlas, FrameBridge, review draft |
+| What should I discuss with my mentor? | `people/rhea-sen/profile.md` | Eval Notebook, PaperTrail, a selected research idea |
+| What changed in an experiment? | Relevant `projects/<slug>/overview.md` | Linked dated journal entries |
+| What do I understand well enough to use? | `projects/study-map/overview.md` | Recall-gap and recheck notes |
+| Which research direction is still a proposal? | `ideas/research/` | Related project and proposed comparison |
+| Which project might I build next? | `ideas/projects/` | Problem and first validation |
+| What can I include in a portfolio? | `projects/research-portfolio/overview.md` | Experience scope and review notes |
 
-| Topic | Starting record |
-| --- | --- |
-| Learning | [Learning systems](domains/learning.md) |
-| Interface craft | [Interface design](domains/design.md) |
-| Main project | [Atlas](projects/atlas/overview.md) |
-| Second project | [Ember](projects/ember/overview.md) |
-| Collaborator | [Morgan](people/morgan/profile.md) |
-| Experience | [Community studio](experience/community-studio/overview.md) |
-| Possibility | [Question trail](ideas/projects/question-trail.md) |
-| Recent event | [Atlas walkthrough](journal/2025/2025-01-15-atlas-walkthrough.md) |
-
-Read `meta/schema.md` for the format and `meta/write-policy.md` before saving changes. Graph links mean only that an explicit connection is recorded; their meaning is explained in the documents.
+Open at most five canonical files on the first pass. Stay with the selected route; sources are scenario metadata, not evidence of real credentials or experiments. The dashboard reads the independent demo repository's committed HEAD.

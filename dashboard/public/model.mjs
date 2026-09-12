@@ -234,11 +234,25 @@ export function shortestPath(nodes, relations, startId, targetId) {
 
 export function layoutFocusGraph(nodes, relations, focusId, depth = 1) {
   const neighborhood = focusNeighborhood(nodes, relations, focusId, depth);
+  const firstRingCount = neighborhood.nodes.filter((node) =>
+    neighborhood.distances.get(node.id) === 1).length;
   const secondRingCount = neighborhood.nodes.filter((node) =>
     neighborhood.distances.get(node.id) === 2).length;
   const expanded = secondRingCount > 0;
-  const width = expanded ? Math.max(1420, 1180 + secondRingCount * 30) : 1100;
-  const height = expanded ? Math.max(900, 760 + secondRingCount * 18) : 680;
+  // Preserve the original layout for small neighborhoods; give denser rings
+  // enough circumference for their labels and keep the outer ring clear.
+  const innerRadiusX = Math.max(expanded ? 360 : 310,
+    firstRingCount > 10 ? firstRingCount * 170 * 1.5 / (2 * Math.PI) : 0);
+  const innerRadiusY = Math.max(expanded ? 240 : 215,
+    firstRingCount > 10 ? firstRingCount * 64 * 1.5 / (2 * Math.PI) : 0);
+  const outerRadiusX = Math.max(570, innerRadiusX + 210,
+    secondRingCount * 150 * 1.5 / (2 * Math.PI));
+  const outerRadiusY = Math.max(350, innerRadiusY + 110,
+    secondRingCount * 64 * 1.5 / (2 * Math.PI));
+  const width = expanded ? Math.max(1420, 1180 + secondRingCount * 30, outerRadiusX * 2 + 220)
+    : Math.max(1100, innerRadiusX * 2 + 220);
+  const height = expanded ? Math.max(900, 760 + secondRingCount * 18, outerRadiusY * 2 + 160)
+    : Math.max(680, innerRadiusY * 2 + 160);
   const center = { x: width / 2, y: height / 2 };
   const positions = new Map();
   const focus = neighborhood.nodes.find((node) => node.id === focusId);
@@ -248,8 +262,8 @@ export function layoutFocusGraph(nodes, relations, focusId, depth = 1) {
   for (const ring of [1, 2]) {
     const ringNodes = neighborhood.nodes.filter((node) => neighborhood.distances.get(node.id) === ring)
       .sort(compareNodes);
-    const radiusX = ring === 1 ? (expanded ? 360 : 310) : 570;
-    const radiusY = ring === 1 ? (expanded ? 240 : 215) : 350;
+    const radiusX = ring === 1 ? innerRadiusX : outerRadiusX;
+    const radiusY = ring === 1 ? innerRadiusY : outerRadiusY;
     const nodeWidth = ring === 1 ? 170 : 150;
     const nodeHeight = 64;
     const phase = ring === 2 && ringNodes.length > 1 ? Math.PI / ringNodes.length : 0;
@@ -308,5 +322,27 @@ export function layoutAtlas(nodes) {
     lanes: ATLAS_LANES,
     width: 1532,
     height: Math.max(410, 58 + longestLane * 74 + 28),
+  };
+}
+
+/** A missing or non-boolean capability never enables an unsupported view. */
+export function viewAvailable(view, capabilities) {
+  return view !== "runs" || capabilities?.operations === true;
+}
+
+/** Label only a wholly synthetic seed, never an empty or mixed personal vault. */
+export function isSyntheticDemo(entities) {
+  return Array.isArray(entities) && entities.length > 0 && entities.every((entity) =>
+    Array.isArray(entity?.sources) && entity.sources.length === 1 &&
+    entity.sources[0] === "demo:fictional");
+}
+
+export function academicContextCounts(entities) {
+  const records = array(entities);
+  return {
+    projects: records.filter((entity) => entity?.type === "project").length,
+    experience: records.filter((entity) => entity?.type === "experience").length,
+    researchIdeas: records.filter((entity) => entity?.type === "idea" && entity.ideaKind === "research").length,
+    projectIdeas: records.filter((entity) => entity?.type === "idea" && entity.ideaKind === "project").length,
   };
 }
