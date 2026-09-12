@@ -16,6 +16,7 @@ jobs:
         run: |
           git --version
           ruby --version
+          ruby -rjson -e 'puts "JSON #{JSON::VERSION}"; puts JSON.generate({"version" => 1}); class Probe; def []=(key, value); puts "custom-key=#{key}"; end; end; JSON.parse(%q({"version":1,"version":1}), object_class: Probe)'
           node --version
           node -e 'if (Number(process.versions.node.split(".")[0]) < 20) process.exit(1)'
       - name: Verify public source snapshot
