@@ -2,7 +2,7 @@
 
 ## Knowledge frontmatter
 
-Every Markdown file under `profile/`, `experience/`, `projects/`, `ideas/`, `people/`, `domains/`, `journal/`, and `sources/` starts with:
+Every knowledge record under `profile/`, `experience/`, `projects/`, `ideas/`, `people/`, `resources/`, `domains/`, `journal/`, and `sources/` starts with:
 
 ```yaml
 ---
@@ -22,13 +22,24 @@ status: active
 
 Required fields: `id`, `type`, `title`, `privacy`, `updated`, `sources`.
 
-- `type`: `profile | domain | experience | person | project | idea | journal | draft | session_export`
+- `type`: `profile | domain | experience | person | resource | project | idea | journal | draft | session_export`
 - `privacy`: `public | private | restricted`
 - `status`: `active | archived | draft`
 - `date`: optional event date in `YYYY-MM-DD` format; use it for journal files.
 - `aliases`, `tags`, `links`: optional YAML lists.
 
 IDs are globally unique and stay stable when a file moves. `updated` is the content update time; historical event time belongs in `date` and the body.
+
+## Resources and demo provenance
+
+- `resources/` stores `type: resource` records for books, courses, places, tools, music, and artworks. Optional `resource_kind` is one of `book | course | place | tool | music | artwork`.
+- A resource describes the thing itself and its sources. The owner's reading progress, preferences, visit plans, and experiences belong in separately linked personal records or journal entries.
+- Every distributed demo record declares `demo_kind: fictional | public_reference`. Fictional people, preferences, relationships, and events use exactly `sources: ["demo:fictional"]`. They never become evidence about a real user.
+- Public references are `type: person` or `type: resource`, with `privacy: public`, `status: active`, and sources containing `demo:public-reference` plus at least one `web:https://...` primary source. They describe public facts only; a link from fictional personal notes does not claim friendship, contact, enrollment, attendance, or endorsement by a real person or organization.
+- Optional `accessed: YYYY-MM-DD` records the source-check date. An accessed date does not establish when the described event occurred.
+- Personal contexts do not require `demo_kind`. Keep their actual sources and privacy classifications.
+
+The initialized empty context has zero knowledge records. Its `profile/summary.md` is an exact built-in placeholder beginning `<!-- mycontext:empty-profile -->`, with no frontmatter. Validation and retrieval recognize only that exact placeholder at that exact path. After the owner reviews their first profile proposal, replace the placeholder with a normal profile record.
 
 ## Idea convention
 

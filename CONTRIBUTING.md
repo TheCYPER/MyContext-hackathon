@@ -12,7 +12,7 @@ prerequisites; it does not install system packages.
 | Retrieval | `scripts/search_context.rb`, `skills/` | Explicit context root; privacy-filtered, evidence-grounded results |
 | Knowledge model | `meta/schema.md`, `templates/context/` | Portable Markdown/YAML, stable IDs, clear evidence labels |
 | Dashboard | `dashboard/` | Read-only projection of the selected context's committed HEAD |
-| Onboarding | `scripts/setup.*`, `examples/demo/` | Repeatable synthetic demo and separate blank personal context |
+| Onboarding | `scripts/setup.*`, `examples/demo/` | Personal-life demo, attributed public references, and zero-record personal context |
 
 Develop branches such as `codex/retrieval-ranking` in this clean repository.
 Worktrees are useful for parallel software work now that this repository has its
@@ -33,7 +33,9 @@ read-only API and security checks when changing presentation.
 
 ## Data and contributions
 
-Only explicitly fictional examples belong in public fixtures. Use reserved example
+Personal stories in public fixtures must be explicitly fictional. Real authors,
+books, courses, places and tools may appear as `public_reference` records with
+official HTTPS sources and a check date. Never invent personal ties to real people. Use reserved example
 domains when a test needs a contact address. Do not contribute your profile, CV,
 relationship history, raw conversations, third-party documents, or exports.
 Personal context belongs in a separate local/private repository and follows its

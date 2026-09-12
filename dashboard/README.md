@@ -1,8 +1,9 @@
 # MyContext dashboard
 
-Margin is the local, read-only dashboard for MyContext. It projects Markdown
-committed in a context Git repository into a review desk, workstreams, people,
-ideas, experience records, and a relationship graph.
+MyContext is a local, read-only view of your personal context: people, plans,
+books, saved places, ideas, and notes. Its Home page brings these together;
+Resources filters a collection by kind, and Connections explores recorded links.
+The dashboard displays Markdown committed in a context Git repository.
 
 ## Run the demo
 
@@ -18,7 +19,22 @@ npm --prefix dashboard start
 
 Open <http://127.0.0.1:4318>. The default context is `.local/demo`, resolved
 relative to the source checkout. This is a separate Git repository created by
-setup from fictional sample data.
+setup from an invented personal-assistant scenario and sourced public references.
+Compact badges distinguish **Fictional scenario** from **Public reference** on
+records. Public sources are linked in the record inspector; they do not imply
+that the fictional owner has a relationship with a public figure.
+
+## Start completely empty
+
+```bash
+bash scripts/setup.sh empty
+node dashboard/server.mjs --root .local/empty
+```
+
+The empty scaffold contains no personal entities. Home displays an invitation
+to begin with your AI, rather than inventing records or displaying demo data.
+Your AI follows the selected context folder’s review policy when adding records.
+Refresh after the approved update is committed.
 
 ## Use your own context repository
 
@@ -43,15 +59,20 @@ configured context root or write to either repository.
   tracked canonical files from **Git `HEAD`**; uncommitted edits do not appear.
   After an approved context update is committed, refresh the page.
 - Canonical records live under `profile/`, `domains/`, `projects/`, `ideas/`,
-  `experience/`, `people/`, and `journal/` in the context repository.
+  `experience/`, `people/`, `resources/`, and `journal/` in the context repository.
 - `restricted` records and all `sources/session-exports/` are excluded.
   Both `public` and `private` canonical records can appear locally.
 - Drafts appear for human review and stay drafts. The dashboard cannot approve,
   apply, sign, send, or schedule anything.
-- Work experience stays separate from project workstreams. Candidate ideas
-  remain outside active workstreams until a project record is approved.
-- Other AI tasks and transcript stores are not inspected. The Runs view has no
-  connected operation feed.
+- The UI calls `project` records **Plans** so reading, travel, learning, and
+  other personal goals share the same portable model. Experience and ideas
+  retain their own record types.
+- `resource` records may carry `resource_kind`: `book`, `course`, `place`,
+  `tool`, `music`, or `artwork`. Optional `demo_kind` is `fictional` or
+  `public_reference`; unmarked personal records receive no demo badge.
+- Other AI tasks and transcript stores are not inspected. Runs navigation and
+  its Home section stay hidden unless the API explicitly reports an operation
+  capability; the current dashboard has no connected operation feed.
 
 The relationship view follows existing frontmatter `links`. It supports
 backlinks, one- and two-hop neighborhoods, and connection paths. Each edge is

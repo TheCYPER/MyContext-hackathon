@@ -25,7 +25,7 @@ function yamlList(values) {
   return `\n${values.map((value) => `  - ${JSON.stringify(value)}`).join("\n")}`;
 }
 
-function knowledge({ id, type, title, privacy, status = "active", ideaKind, tags = [], links = [], body = "# Notes\n\nFixture" }) {
+function knowledge({ id, type, title, privacy, status = "active", ideaKind, resourceKind, demoKind, accessed, sources = ["user:2026-08-20"], tags = [], links = [], body = "# Notes\n\nFixture" }) {
   const privacyLine = privacy === undefined ? "" : `privacy: ${privacy}\n`;
   const ideaKindLine = ideaKind === undefined ? "" : `idea_kind: ${ideaKind}`;
   return [
@@ -33,11 +33,13 @@ function knowledge({ id, type, title, privacy, status = "active", ideaKind, tags
     `id: ${id}`,
     `type: ${type}`,
     ideaKindLine,
+    resourceKind === undefined ? "" : `resource_kind: ${resourceKind}`,
+    demoKind === undefined ? "" : `demo_kind: ${demoKind}`,
+    accessed === undefined ? "" : `accessed: ${JSON.stringify(accessed)}`,
     `title: ${title}`,
     privacyLine.trimEnd(),
     'updated: "2026-08-20T12:00:00+08:00"',
-    "sources:",
-    '  - "user:2026-08-20"',
+    `sources: ${yamlList(sources)}`,
     `aliases: ${yamlList([])}`,
     `tags: ${yamlList(tags)}`,
     `links: ${yamlList(links)}`,
@@ -383,4 +385,101 @@ test("context selection honors explicit roots, shared configuration, and the leg
   process.env.MY_CONTEXT_ROOT = missingRoot;
   process.env.MYCONTEXT_ROOT = missingRoot;
   assert.equal((await createDashboardServer({ root: fixtureRoot })).root, expectedRoot);
+});
+
+test("empty context projects zero records and accepts only the exact built-in placeholder", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "mycontext-empty-backend-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const runGit = (...args) => execFile("git", ["-C", root,
+    "-c", "user.name=Context Test", "-c", "user.email=context-test@example.invalid",
+    "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", ...args], { encoding: "utf8", shell: false });
+  const validate = () => execFile("ruby", [path.resolve(TEST_DIR, "../../scripts/validate.rb"), "--scaffold", root], { encoding: "utf8", shell: false });
+  const project = async () => JSON.parse((await execFile("ruby", [PROJECTOR, root], { encoding: "utf8", shell: false })).stdout);
+  const placeholder = "<!-- mycontext:empty-profile -->\n# Your context\n\nNo personal facts have been added yet. Add your profile only after reviewing the proposed changes.\n";
+  await mkdir(path.join(root, "profile"));
+  await writeFile(path.join(root, "INDEX.md"), "# Empty context\n");
+  await writeFile(path.join(root, "profile/summary.md"), placeholder);
+  await runGit("init", "-b", "main");
+  await runGit("add", ".");
+  await runGit("commit", "-m", "Empty context");
+  assert.match((await validate()).stdout, /0 knowledge files/);
+  const blank = await project();
+  assert.equal(blank.counts.total, 0);
+  assert.equal(blank.counts.excluded.invalid, 0);
+  assert.deepEqual(blank.entities, []);
+  assert.deepEqual(blank.graph, { nodes: [], edges: [], adjacency: {} });
+  assert.deepEqual(blank.workstreams, []);
+  assert.deepEqual(blank.reviewItems, []);
+
+  await writeFile(path.join(root, "profile/summary.md"), placeholder + "Unstructured personal text\n");
+  await assert.rejects(validate(), /missing opening YAML frontmatter delimiter/);
+  await runGit("add", ".");
+  await runGit("commit", "-m", "Invalid profile text");
+  assert.equal((await project()).counts.excluded.invalid, 1);
+});
+
+test("resources and demo provenance survive projection, graph links, summaries, and details", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "mycontext-resource-backend-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const runGit = (...args) => execFile("git", ["-C", root,
+    "-c", "user.name=Context Test", "-c", "user.email=context-test@example.invalid",
+    "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", ...args], { encoding: "utf8", shell: false });
+  const put = async (relative, options) => {
+    const target = path.join(root, relative);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, knowledge(options), "utf8");
+  };
+  await put("profile/summary.md", {
+    id: "profile.summary", type: "profile", title: "Fictional reader", privacy: "private",
+    demoKind: "fictional", sources: ["demo:fictional"], links: ["resource.walking"],
+  });
+  const resource = {
+    id: "resource.walking", type: "resource", resourceKind: "book", title: "A Walking Book", privacy: "public",
+    demoKind: "public_reference", accessed: "2026-09-12",
+    sources: ["demo:public-reference", "web:https://publisher.example.invalid/walking"],
+    body: "# Public source\n\nA synthetic book reference used only in tests.",
+  };
+  await put("resources/books/walking.md", resource);
+  await put("resources/without-kind.md", {
+    id: "resource.legacy", type: "resource", title: "Uncategorized resource", privacy: "private",
+  });
+  await put("resources/invalid-kind.md", { ...resource, id: "resource.invalid-kind", resourceKind: "person" });
+  await put("resources/invalid-date.md", { ...resource, id: "resource.invalid-date", accessed: "2026-02-30" });
+  await put("resources/invalid-demo.md", { ...resource, id: "resource.invalid-demo", demoKind: "confirmed" });
+  await put("resources/restricted.md", { ...resource, id: "resource.restricted", privacy: "restricted" });
+  await runGit("init", "-b", "main");
+  await runGit("add", ".");
+  await runGit("commit", "-m", "Resource fixtures");
+
+  const projection = JSON.parse((await execFile("ruby", [PROJECTOR, root], { encoding: "utf8", shell: false })).stdout);
+  assert.equal(projection.counts.total, 3);
+  assert.equal(projection.counts.byType.resource, 2);
+  assert.equal(projection.counts.excluded.invalid, 3);
+  assert.equal(projection.counts.excluded.restricted, 1);
+  const node = projection.graph.nodes.find((item) => item.id === "resource.walking");
+  assert.equal(node.resourceKind, "book");
+  assert.equal(node.demoKind, "public_reference");
+  assert.equal(node.accessed, "2026-09-12");
+  assert.deepEqual(projection.graph.adjacency["resource.walking"].neighborIds, ["profile.summary"]);
+  assert.equal(projection.entities.find((item) => item.id === "profile.summary").demoKind, "fictional");
+  assert.equal("resourceKind" in projection.entities.find((item) => item.id === "resource.legacy"), false);
+
+  const app = await createDashboardServer({ root, publicDir, projectorPath: PROJECTOR });
+  await new Promise((resolve, reject) => {
+    app.server.once("error", reject);
+    app.server.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(() => new Promise((resolve) => app.server.close(resolve)));
+  const url = `http://127.0.0.1:${app.server.address().port}`;
+  const snapshot = (await (await fetch(`${url}/api/v1/snapshot`)).json()).snapshot;
+  const summary = snapshot.entities.find((item) => item.id === "resource.walking");
+  assert.equal(summary.resourceKind, "book");
+  assert.equal(summary.demoKind, "public_reference");
+  assert.equal(summary.accessed, "2026-09-12");
+  assert.deepEqual(summary.sources, resource.sources);
+  assert.equal("body" in summary, false);
+  const detail = (await (await fetch(`${url}/api/v1/entities/resource.walking`)).json()).entity;
+  assert.equal(detail.resourceKind, "book");
+  assert.equal(detail.demoKind, "public_reference");
+  assert.match(detail.body, /synthetic book reference/);
 });

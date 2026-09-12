@@ -10,8 +10,11 @@ require "psych"
 require "time"
 
 module MyContextSearch
-  CANONICAL_ROOTS = %w[profile experience projects ideas people domains journal].freeze
-  TYPES = %w[profile domain experience person project idea journal draft session_export].freeze
+  CANONICAL_ROOTS = %w[profile experience projects ideas people resources domains journal].freeze
+  TYPES = %w[profile domain experience person resource project idea journal draft session_export].freeze
+  RESOURCE_KINDS = %w[book course place tool music artwork].freeze
+  DEMO_KINDS = %w[fictional public_reference].freeze
+  EMPTY_PROFILE = "<!-- mycontext:empty-profile -->\n# Your context\n\nNo personal facts have been added yet. Add your profile only after reviewing the proposed changes.\n".freeze
   MAX_HEADER_BYTES = 65_536
   FIELD_WEIGHTS = { "id" => 120, "title" => 90, "aliases" => 80, "tags" => 45, "body" => 10 }.freeze
 
@@ -55,6 +58,14 @@ module MyContextSearch
       data[key].is_a?(Array) && data[key].all? { |value| value.is_a?(String) && !value.strip.empty? }
     end
     return nil if data["sources"].empty?
+    return nil if data.key?("resource_kind") && (data["type"] != "resource" || !RESOURCE_KINDS.include?(data["resource_kind"]))
+    return nil if data.key?("demo_kind") && !DEMO_KINDS.include?(data["demo_kind"])
+    if data.key?("accessed")
+      accessed = data["accessed"].to_s
+      return nil unless accessed.match?(/\A\d{4}-\d{2}-\d{2}\z/)
+      Date.iso8601(accessed)
+      data["accessed"] = accessed
+    end
     updated = data["updated"].respond_to?(:iso8601) ? data["updated"].iso8601 : data["updated"].to_s
     return nil unless updated.match?(/(?:Z|[+-]\d{2}:\d{2})\z/)
     data["updated"] = Time.iso8601(updated).iso8601
@@ -146,7 +157,7 @@ module MyContextSearch
     body_line = prose.find { |line| terms.any? { |term| line.downcase.include?(term) } }
     snippet = (body_line || prose.first || lines.first || data["title"]).gsub(/\s+/, " ")
     snippet = snippet[0, 220] + "…" if snippet.length > 220
-    result = data.slice("id", "title", "type", "privacy", "status", "updated", "sources").merge(
+    result = data.slice("id", "title", "type", "privacy", "status", "updated", "sources", "resource_kind", "demo_kind", "accessed").merge(
       "path" => path, "score" => score, "match_reason" => reason,
       "matched_fields" => matched_fields, "term_matches" => term_matches, "snippet" => snippet
     )
@@ -185,6 +196,13 @@ module MyContextSearch
     candidates(root, argv[1], options).each do |path, relative|
       next if relative.split("/").include?("drafts") && !options[:include_drafts]
       File.open(path, "r:UTF-8") do |io|
+        if relative == "profile/summary.md"
+          first_line = io.gets
+          if first_line == EMPTY_PROFILE.lines.first
+            next if first_line + io.read(EMPTY_PROFILE.bytesize - first_line.bytesize + 1).to_s == EMPTY_PROFILE
+          end
+          io.rewind
+        end
         data = read_header(io)
         unless data
           excluded_invalid += 1

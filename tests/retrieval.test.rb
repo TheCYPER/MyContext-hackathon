@@ -88,6 +88,82 @@ class RetrievalTest < Minitest::Test
     assert_empty paths(".*")
   end
 
+  def test_public_resources_are_searchable_with_provenance_and_date
+    document("resources/books/walking.md", id: "resource.walking", type: "resource", title: "A Walking Book",
+      privacy: "public", resource_kind: "book", demo_kind: "public_reference", accessed: "2026-09-12",
+      aliases: ["城市漫步"], sources: ["demo:public-reference", "web:https://publisher.example.invalid/walking"])
+    response = result("城市漫步", "resources")
+    record = response.fetch("results").first
+    assert_equal "resource.walking", record["id"]
+    assert_equal "book", record["resource_kind"]
+    assert_equal "public_reference", record["demo_kind"]
+    assert_equal "2026-09-12", record["accessed"]
+    assert_equal ["demo:public-reference", "web:https://publisher.example.invalid/walking"], record["sources"]
+    assert_equal ["resources/books/walking.md"], paths("A Walking Book")
+  end
+
+  def test_blank_placeholder_is_not_a_search_result_or_invalid_record
+    FileUtils.mkdir_p(File.join(@root, "profile"))
+    summary = File.join(@root, "profile", "summary.md")
+    placeholder = "<!-- mycontext:empty-profile -->\n# Your context\n\nNo personal facts have been added yet. Add your profile only after reviewing the proposed changes.\n"
+    File.write(summary, placeholder)
+    response = result("personal")
+    assert_empty response["results"]
+    assert_equal 0, response["excluded_invalid"]
+    File.write(summary, placeholder + "Unexpected personal text\n")
+    assert_equal 1, result("personal")["excluded_invalid"]
+    File.write(summary, placeholder.lines.first)
+    assert_equal 1, result("personal")["excluded_invalid"]
+  end
+
+  def test_placeholder_detection_does_not_read_past_a_restricted_profile_header
+    FileUtils.mkdir_p(File.join(@root, "profile"))
+    header = "---\nid: a\ntitle: b\ntype: profile\nprivacy: restricted\nstatus: active\nupdated: 2026-01-01T00:00:00Z\nsources: [x]\naliases: []\ntags: []\nlinks: []\n---\n"
+    File.write(File.join(@root, "profile", "summary.md"), header + "BODY MUST NOT BE READ\n")
+    # Instrument actual file reads so even a short pre-filter peek into the
+    # restricted body fails; merely asserting empty search results misses this.
+    guarded_search = <<~'RUBY'
+      require ARGV.fetch(0)
+      root = ARGV.fetch(1)
+      body_start = Integer(ARGV.fetch(2))
+      protected_path = File.join(root, "profile", "summary.md")
+      guard = Module.new do
+        define_method(:read) do |*arguments|
+          length = arguments.first
+          raise "restricted body was read before privacy filtering" if !length || pos + length > body_start
+          super(*arguments)
+        end
+      end
+      File.singleton_class.prepend(Module.new do
+        define_method(:open) do |path, *arguments, &block|
+          next super(path, *arguments, &block) unless path == protected_path
+          super(path, *arguments) do |io|
+            io.extend(guard)
+            block.call(io)
+          end
+        end
+      end)
+      exit MyContextSearch.run(["--json", "--root", root, "BODY"])
+    RUBY
+    out, err, status = Open3.capture3("ruby", "-e", guarded_search,
+      File.join(SOURCE, "scripts", "search_context.rb"), @root, header.bytesize.to_s)
+    assert status.success?, err
+    response = JSON.parse(out)
+    assert_empty response["results"]
+    assert_equal 0, response["excluded_invalid"]
+  end
+
+  def test_invalid_resource_metadata_and_impossible_dates_are_excluded
+    [
+      { resource_kind: "person" }, { demo_kind: "confirmed" }, { accessed: "2026-02-30" }, { accessed: "today" }
+    ].each_with_index do |changes, index|
+      document("resources/invalid-#{index}.md", **{ type: "resource", title: "Needle" }.merge(changes))
+    end
+    response = result("Needle")
+    assert_empty response["results"]
+    assert_equal 4, response["excluded_invalid"]
+  end
+
   def test_snippet_prefers_matching_prose_to_heading_or_unrelated_intro
     document("projects/needle.md", title: "Needle", body: "# Needle\n\nAn unrelated introduction.\n\nThe Needle decision was to keep files local.\n")
     assert_equal "The Needle decision was to keep files local.", result("Needle")["results"].first["snippet"]

@@ -1,6 +1,6 @@
 # Privacy and security boundaries
 
-The public repository contains software, blank templates, and fictional examples.
+The public repository contains software, blank templates, fictional personal stories, and attributed public references.
 Personal context is created separately, with no remote by default. The local demo
 is ignored under `.local/`; a `.gitignore` rule cannot remove data already committed
 to Git history. If creating another public distribution, export only reviewed

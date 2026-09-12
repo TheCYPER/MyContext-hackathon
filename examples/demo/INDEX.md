@@ -1,18 +1,19 @@
-# Fictional context index
+# Mina’s personal context · demo
 
-All records in this demonstration are invented and use `demo:fictional` as their source.
+Mina Chen and every personal event, relationship, preference, plan and draft in this scenario are fictional. Public authors, books, courses, places and tools are separately labelled `public_reference` and cite official sources.
 
-Start with [Demo Builder](profile/summary.md), [Goals](profile/goals.md), and [Preferences](profile/preferences.md).
+Read `profile/summary.md` first, then choose a small route.
 
-| Topic | Starting record |
+| Need | Start here |
 | --- | --- |
-| Learning | [Learning systems](domains/learning.md) |
-| Interface craft | [Interface design](domains/design.md) |
-| Main project | [Atlas](projects/atlas/overview.md) |
-| Second project | [Ember](projects/ember/overview.md) |
-| Collaborator | [Morgan](people/morgan/profile.md) |
-| Experience | [Community studio](experience/community-studio/overview.md) |
-| Possibility | [Question trail](ideas/projects/question-trail.md) |
-| Recent event | [Atlas walkthrough](journal/2025/2025-01-15-atlas-walkthrough.md) |
+| Voice, preferences, routines | `profile/` |
+| Friends and family | `people/<name>/profile.md` |
+| Current personal plans | `projects/<plan>/overview.md` |
+| Books, courses, places, tools | `resources/` |
+| What changed and why | `journal/2026/` |
+| Draft a reply | Person profile, related plan, then an explicitly requested draft |
+| Interests | `domains/` |
+| Possibilities for later | `ideas/projects/` (drafts; request explicitly) |
+| Work context | `experience/` |
 
-Read `meta/schema.md` for the format and `meta/write-policy.md` before saving changes. Graph links mean only that an explicit connection is recorded; their meaning is explained in the documents.
+Real authors are references, not personal contacts. A saved course is not a credential. A saved place is not a reservation. Use the latest plan for current intent, and journal entries to explain changes. Draft messages remain unsent.

@@ -2,12 +2,12 @@
 
 **Personal context your AI can read, cite, and propose changes to — in files you own.**
 
-MyContext gives a local AI assistant a small, inspectable library of your projects,
-preferences, people, and decisions. Markdown and YAML are the source of truth;
+MyContext gives a local AI assistant an inspectable library of your preferences, people,
+reading, travel plans, everyday memories, and decisions. Markdown and YAML are the source of truth;
 Git records changes; a local dashboard lets you browse the same knowledge.
 
 This repository contains the application, reusable Skills, blank templates, and
-fictional demo records. Your own context belongs in a **separate local Git
+a fictional personal-life scenario with attributed public references. Your own context belongs in a **separate local Git
 repository**. No original personal profile, relationships, conversations, or
 private Git history are included in this distribution.
 
@@ -29,13 +29,40 @@ npm start
 ```
 
 Open **http://127.0.0.1:4318**. Setup creates `.local/demo/`, an ignored, independent
-Git repository containing only fictional records. It preserves an existing demo
-and refuses to overwrite modified data. The public source repository and demo have
+Git repository with 95 records: 70 fictional life records and 25 sourced public references. It preserves an existing current demo
+and refuses to overwrite edits or silently keep an outdated seed. The public source repository and demo have
 different Git histories. The dashboard reads the demo's **committed HEAD**;
 uncommitted note edits do not appear until committed.
 
 No `npm install` is necessary. Setup reports missing prerequisites without
 installing system packages. If port 4318 is occupied, use `npm start -- --port 4319`.
+
+## Start with a life story or a blank page
+
+The default demo follows **Mina Chen**, a fictional bilingual translator in London.
+Her library includes friends and family, gift preferences, a changing Lisbon plan,
+borrowed books, language practice, cooking, photographs and unsent message drafts.
+Real references include Ursula K. Le Guin, Oliver Sacks, the V&A, Kew, CS50 and Zotero.
+The interface labels **Fictional scenario** and **Public reference** separately.
+
+Try: “What dates are we considering for Lisbon now?”, “Would Mia like a scented
+candle?”, “What am I reading and who lent it to me?”, or “Have I actually taken CS50?”
+See [the demo guide](examples/demo/README.md) for more questions and provenance.
+
+For a **completely empty start**, with zero knowledge records or graph nodes:
+
+```bash
+npm run setup:empty
+npm run start:empty -- --port 4319
+```
+
+Open http://127.0.0.1:4319. This uses `.local/empty/`, independent of the rich demo.
+A personal directory outside the source repository uses the same empty scaffold.
+
+If setup reports an old demo seed, stop its server and preserve the existing
+`.local/demo/` under a new backup name before running setup again. Setup will never
+silently replace your local notes. Its seed fingerprint also catches changes in
+the distributed example or policy files.
 
 ## Ask your AI to install everything
 
@@ -70,7 +97,8 @@ what succeeded. Do not call a partial setup complete.
    dependencies and needs no model/API key. Do not run unrelated installers.
 
 4. Run `npm run setup` from the source root. This should create `.local/demo/`
-   with an independent initial Git commit containing fictional records. Run
+   with an independent initial Git commit containing a fictional personal-life
+   scenario and separately labelled public references. Run
    `npm test`. If a check fails, diagnose it and report the actual blocker.
    Do not disable tests or privacy checks to claim success.
 
@@ -84,11 +112,12 @@ what succeeded. Do not call a partial setup complete.
 6. Start `npm start` and check http://127.0.0.1:4318/api/v1/health plus the visible
    dashboard. If the port is occupied, select an unused local port using
    `npm start -- --port <port>` and report it. Keep the server bound to localhost.
-   Verify that the demo shows fictional people, projects, and connected records.
+   Verify that the demo shows personal plans, friends, family, memories and
+   real books/places with source links. Public authors are references, not contacts.
    Do not use a public tunnel or deploy personal data to a hosted preview.
 
 7. Exercise retrieval with:
-   `bash scripts/search-context.sh --json Atlas`
+   `bash scripts/search-context.sh --json Lisbon`
    Read the highest-ranked relevant note and explain the result with its file
    path, evidence source, and uncertainty. Do not turn a generic graph link into
    an invented collaboration or other semantic relationship.
@@ -138,7 +167,9 @@ MY_CONTEXT_ROOT="$HOME/MyContextData" bash scripts/search-context.sh --json "you
 ```
 
 The initializer creates `profile/`, `people/`, `projects/`, `experience/`, `ideas/`,
-`domains/`, `journal/`, and `sources/`, with an index and blank profile documents.
+`domains/`, `resources/`, `journal/`, and `sources/`, with an index and a plain
+empty-profile placeholder. There are zero knowledge records, example identities,
+preferences or goals until you choose to add them.
 Read `AGENTS.md` inside the data directory before adding personal information.
 Knowledge edits are proposed as a diff with an ID, source, privacy level, and hash.
 The owner reviews and approves the exact proposal before it is applied and
@@ -157,8 +188,8 @@ all prose is safe to publish. The public software checks use `npm test` instead.
 | Retrieval | Ranked lexical search over an explicitly selected context; lightweight Librarian guidance |
 | Context Skills | Retrieval, person research, outreach drafts, and explicitly selected session summaries |
 | Human review | Documented proposal workflow with exact diff and hash; no automatic apply engine |
-| Dashboard | Local read-only review desk, people/projects/ideas, focused graph and global atlas |
-| Installation | Synthetic demo, blank personal repository, conflict-safe project skill links |
+| Dashboard | Personal Home, Plans, People, Resources, Notes, focused connections and global overview |
+| Installation | Rich personal-life demo, zero-record empty mode, separate personal repository, project skill links |
 
 There is no built-in hosted AI service, vector index, graph database, inbox
 integration, message sending, automatic transcript collection, or automatic
@@ -188,4 +219,5 @@ story. This public repository begins with clean history. Worktrees can be used
 here for parallel development; a worktree of a private repository would still
 share that repository's history. See [Git worktree documentation](https://git-scm.com/docs/git-worktree).
 
-MIT licensed. All distributed context examples are fictional.
+MIT licensed. Personal-life stories are fictional; public references are attributed
+to official sources and are never represented as personal relationships.

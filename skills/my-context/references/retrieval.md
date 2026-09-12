@@ -9,7 +9,7 @@ Choose a context root in this order:
 1. Nonempty `MY_CONTEXT_ROOT`.
 2. Nonempty `MYCONTEXT_ROOT` (compatibility alias).
 3. The nearest ancestor of the current working directory containing `INDEX.md`, `profile/summary.md`, and `meta/schema.md`. Only walk upward from the current directory; never recursively discover other folders.
-4. `APP_ROOT/.local/demo`, if setup has created it. State clearly that this is fictional demo data, not facts about the user.
+4. `APP_ROOT/.local/demo`, if setup has created it. State clearly that its personal story is fictional, while `public_reference` records cite real external sources; neither describes the actual user.
 
 Resolve the chosen directory to its real path. If an explicit environment path is invalid, stop retrieval and report that path configuration; do not silently use a fallback. If no context exists, ask the user to run setup or select a context. Do not clone, create, import, or write personal context merely to answer a lookup.
 
@@ -18,7 +18,7 @@ Read the context's `AGENTS.md` and follow its access boundaries. Before updates 
 ## First pass
 
 1. Read `INDEX.md` and `profile/summary.md` from the selected context.
-2. Choose the smallest relevant scope: `profile`, `experience/<slug>`, `projects/<slug>`, `ideas`, `people/<slug>`, `domains/<slug>`, or `journal/<year>`.
+2. Choose the smallest relevant scope: `profile`, `experience/<slug>`, `projects/<slug>`, `ideas`, `people/<slug>`, `domains/<slug>`, `resources/<kind>`, or `journal/<year>`.
 3. Search a stable ID, exact name, or distinctive terms:
 
    ```bash

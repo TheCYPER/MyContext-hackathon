@@ -1,28 +1,27 @@
 ---
-id: profile.summary
-type: profile
-title: Demo Builder
-privacy: private
-updated: 2025-01-15T12:00:00Z
+id: "profile.summary"
+type: "profile"
+title: "Mina Chen · 林米娜"
+privacy: "private"
+updated: "2026-09-12T12:00:00Z"
 sources: ["demo:fictional"]
-aliases: ["Demo Builder", "builder"]
-tags: [demo, learning, making]
-links: [profile.goals, profile.preferences, domain.learning, domain.design, project.atlas, person.morgan]
-status: active
+aliases: ["Mina", "林米娜", "米娜"]
+tags: ["personal-assistant", "demo", "bilingual"]
+links: ["profile.preferences", "profile.routines", "profile.goals", "profile.boundaries", "person.mia-park", "person.lena-chen", "project.lisbon-weekend", "project.autumn-reading"]
+status: "active"
+demo_kind: "fictional"
 ---
 
-# Demo Builder
+# Mina, at a glance
 
-Fictional demo: Demo Builder explores how small tools can make learning easier to revisit. This character does not represent a real person.
+Mina Chen is the fictional person at the centre of this demo. She is a bilingual freelance translator living in London, sharing a flat with her friend Mia. This is a scenario, not the software author's biography.
 
-## Current focus
+She reads speculative fiction, carries a small camera on walks, cooks vegetarian dinners, and is slowly learning Spanish. She wants an assistant to remember the small things: who borrowed a book, which travel dates changed, what makes a thoughtful gift, and why she saved a link.
 
-Atlas collects questions and the notes that answered them. Ember explores a calmer way to review those notes visually.
+# This month
 
-## Working relationships
+Finish The Left Hand of Darkness with Ellie, make room for a quiet museum afternoon, choose dates for Lisbon with Sam, and send Lena a birthday parcel. Her plans have room to change; nothing in this demo books, buys, sends, or schedules anything.
 
-Morgan is an invented collaborator who helps review interface sketches. Their relationship is described here; the graph records a general connection only.
+# Start here
 
-## Next steps
-
-Review the latest Atlas walkthrough before adding another feature.
+Preferences hold the lasting constraints. People hold relationship context. Plans explain what Mina hopes to do. Journal notes record what changed. Public references contain sourced facts about real books, courses and places; they do not imply personal contact with their creators.

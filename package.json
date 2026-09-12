@@ -7,7 +7,9 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "setup": "bash scripts/setup.sh demo",
+    "setup:empty": "bash scripts/setup.sh empty",
     "start": "node dashboard/server.mjs",
+    "start:empty": "node dashboard/server.mjs --root .local/empty",
     "test": "bash scripts/check.sh --tree ."
   }
 }
