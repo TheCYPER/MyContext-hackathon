@@ -16,9 +16,8 @@ gems are needed. Setup checks prerequisites; it does not install system packages
 | Onboarding | `scripts/setup.*`, `examples/demo/` | Repeatable synthetic demo and separate blank personal context |
 | Cross-session capture | `scripts/context_binding.rb`, `scripts/capture-context.*`, `scripts/install-global-skill.*` | Explicit library binding; external review queue or enabled journal-only local commit |
 
-Develop branches such as `codex/retrieval-ranking` in this clean repository.
-Worktrees are useful for parallel software work now that this repository has its
-own history. Never base a public branch on a private context repository.
+Use a branch such as `codex/retrieval-ranking` for changes. Keep application
+development separate from personal context repositories.
 
 ## Checks
 

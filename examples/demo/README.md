@@ -1,52 +1,72 @@
-# A student's academic and professional context
+# Explore the academic demo
 
-Alex Lin / 林知远 is a fictional third-year computer science student. This scenario connects internship engineering, research exploration, course learning and future project ideas so a local AI assistant can continue a working session with relevant context.
+Follow **Alex Lin / 林知远**, a fictional third-year computer science student,
+through an internship, research experiments, course learning, and future project
+ideas. The 67 linked records give your AI enough context to continue a task with
+its earlier decisions and unresolved questions in view.
 
-All people, institutions, employment dates, contributions and experiment outcomes are invented. Every record uses `sources: ["demo:fictional"]`. Technical descriptions are scenario content, not shipped software, real performance claims, real institutional affiliations or published research results. No private original records, transcripts, contact details or employer materials are included.
+![The MyContext academic demo](../../docs/assets/screenshots/overview.png)
 
-## What is inside
+All people, institutions, dates, contributions, and results are invented.
+Every record uses `sources: ["demo:fictional"]`. Projects described in these
+records are scenario content, separate from the MyContext application itself.
 
-| Records | Count | What they preserve |
-| --- | ---: | --- |
-| Profile | 3 | Background, priorities, learning and working preferences |
-| Domains | 6 | Learning, research, engineering, robotics, music computing and context systems |
-| Experience | 3 | Internship, student lab work and peer mentoring |
-| Projects | 10 | Implemented exercises, bounded prototypes and work still in progress |
-| Research ideas | 8 | Questions, proposed comparisons and advisor help |
-| Project ideas | 4 | Problems and first validation steps |
-| People | 8 | Fictional mentors, instructors and collaborators |
-| Journal | 20 | Decisions, failed attempts, revisions and learning gaps |
-| Drafts | 5 | Material awaiting review, with no sending capability |
-| **Total** | **67** | Linked context for the next working session |
+## Run and explore
 
-## Questions for your Codex session
+From the software checkout:
 
-Open the generated `.local/demo/` directory in your local AI assistant after running setup and installing project-scoped skills. The browser provides navigation and search; ask these questions in your AI assistant.
+```bash
+npm run setup
+bash scripts/install-skills.sh "$PWD/.local/demo"
+npm start -- --root "$PWD/.local/demo"
+```
 
-- “Summarize my internship contributions for a portfolio. What still needs my supervisor's review?”
-- “Why was Eval Notebook's first result withdrawn, and what is the current evaluation setup?”
-- “Which research ideas grow out of limitations I actually encountered?”
-- “Prepare a brief for Rhea: current research state, one unresolved question, and the help I need.”
-- “Have I mastered backpropagation, or only followed a worked explanation?”
-- “What is implemented in Tabletop Sim, and what remains untested outside simulation?”
-- “Which future project can I validate with one bounded experiment?”
-- “Find the last retrieval failure and explain how it changes the next search experiment.”
+Open **http://127.0.0.1:4318**. Setup creates `.local/demo/` with its own Git
+history. Open that directory as your AI workspace and set `MY_CONTEXT_ROOT` to
+its absolute path when using the demo's Skills. Ask questions in your assistant;
+the dashboard provides the visual view of committed records.
 
-Useful answers should cite the current project and relevant historical note, keep ideas separate from active work, and preserve uncertainty. A link alone does not establish authorship, supervision or evidence quality.
+| Start with | Follow the context to | Try asking |
+| --- | --- | --- |
+| [Eval Notebook](projects/eval-notebook/overview.md) | Withdrawn result, split correction, advisor discussion | Why was the first result withdrawn, and what should I check next? |
+| [Meridian internship](experience/meridian-internship/overview.md) | Motion Atlas, FrameBridge, contribution draft | What can I accurately say about my internship? |
+| [StudyMap](projects/study-map/overview.md) | Guided explanation, recall gap, later practice | What should I practise before calling this topic understood? |
+| [Experiment Index](ideas/projects/experiment-index.md) | Evaluation problems and a proposed first validation | How can I test this idea before building it? |
 
-The demo also contains ten manually curated typed relation assertions. They cover
-fictional mentor and supervisor participation, internship projects, journal topics,
-a newer evaluation note that supersedes an earlier protocol, and research ideas
-motivated by recorded project problems. Every assertion uses
-`sources: ["demo:fictional"]`; `review: "confirmed"` means the fictional scenario
-statement was curated, not that a real user's claim was verified. Assertions marked
-`evidence: "inference"` remain explicit interpretations. Existing `links` are left
-unchanged and stay untyped.
+See [four scenarios with prompts and source-backed outputs](../../docs/scenarios.md).
 
-Research and project ideas use the existing `draft` lifecycle, so an explicit idea lookup uses `--include-drafts`. A current overview can remain `active` after the underlying internship has ended; the body records that completion. The parked CourseQuery exercise requires `--include-archived` when specifically retrieving it.
+## What is included
 
-## Run the scenario
+| Record type | Count |
+| --- | ---: |
+| Profile | 3 |
+| Domains | 6 |
+| Experiences | 3 |
+| Projects | 10 |
+| Research ideas | 8 |
+| Project ideas | 4 |
+| People | 8 |
+| Journal entries | 20 |
+| Review drafts | 5 |
+| **Total** | **67** |
 
-From the application source, run `npm run setup`, `bash scripts/install-skills.sh`, and `npm start`. Setup creates `.local/demo/` as an independent local Git repository. The dashboard reads committed records. If the example seed is outdated, preserve the existing folder under a backup name before creating the new one.
+Ten curated typed relation assertions illustrate how a mentor connects to an
+experience, a journal entry describes a project, or a later protocol replaces an
+earlier one. Their evidence and review labels describe the fictional scenario.
+Ordinary links remain navigation connections. Use the [graph guide](../../dashboard/README.md#explore-the-graph)
+to inspect both.
 
-For your own academic/work context, create a separate directory using `bash scripts/setup.sh personal /absolute/new/path`. It contains the original blank profile templates, not Alex's identity or experiences.
+Ideas use the `draft` lifecycle, so command-line idea searches need
+`--include-drafts`. The parked CourseQuery exercise requires
+`--include-archived`. An internship overview can remain an active record after
+the internship ends; its body explains the completed experience.
+
+## Start a personal library
+
+Create an empty repository with
+`bash scripts/setup.sh personal /absolute/new/path` from the software directory.
+The initializer uses blank templates. Follow [the setup guide](../../docs/getting-started.md#use-your-own-context)
+to connect it to your AI.
+
+If setup reports an outdated demo, stop its server and preserve `.local/demo/`
+under an unused backup name before creating a new copy. Keep any notes you added.
